@@ -1,0 +1,34 @@
+{
+    "name": "n8ao",
+    "version": "1.0.0",
+    "description": "",
+    "main": "dist/N8AO.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "build": "parcel build src/N8AOPass.js",
+        "dev": "nodemon --watch src --ext .js --exec 'npm run build' & live-server"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/N8python/ssao.git"
+    },
+    "author": "",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/N8python/ssao/issues"
+    },
+    "homepage": "https://github.com/N8python/ssao#readme",
+    "targets": {
+        "main": {}
+    },
+    "dependencies": {
+        "three": "^0.152.2"
+    },
+    "type": "module",
+    "devDependencies": {
+        "live-server": "^1.2.2",
+        "nodemon": "^2.0.22",
+        "parcel": "^2.8.3",
+        "servez": "^1.14.2"
+    }
+}

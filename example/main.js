@@ -5,7 +5,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { Stats } from "./stats.js";
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-import { N8AOPass } from '/dist/N8AO.js';
+import { N8AOPass } from './N8AO.js';
 async function main() {
     // Setup basic renderer, controls, and profiler
     let clientWidth = window.innerWidth;

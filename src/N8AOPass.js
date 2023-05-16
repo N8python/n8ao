@@ -238,7 +238,6 @@ class N8AOPass extends Pass {
             if (this.debugMode) {
                 timerQuery = gl.createQuery();
                 gl.beginQuery(ext.TIME_ELAPSED_EXT, timerQuery);
-                checkTimerQuery(timerQuery, gl, this);
             }
             renderer.setRenderTarget(this.beautyRenderTarget);
             renderer.render(this.scene, this.camera);
@@ -309,6 +308,7 @@ class N8AOPass extends Pass {
             this.effectCompisterQuad.render(renderer);
             if (this.debugMode) {
                 gl.endQuery(ext.TIME_ELAPSED_EXT);
+                checkTimerQuery(timerQuery, gl, this);
             }
         }
         /**

@@ -3,6 +3,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { Stats } from "./stats.js";
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { N8AOPass } from './N8AO.js';
@@ -42,7 +43,11 @@ async function main() {
     torusKnot.castShadow = true;
     torusKnot.receiveShadow = true;
     scene.add(torusKnot);
-    const sponza = (await new GLTFLoader().loadAsync("sponza.glb")).scene;
+    const loader = new GLTFLoader();
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath("./draco/");
+    loader.setDRACOLoader(dracoLoader);
+    const sponza = (await loader.loadAsync("sponza_cd.glb")).scene;
     sponza.traverse(object => {
         if (object.material) {
             object.material.envMap = environment;

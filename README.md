@@ -16,7 +16,8 @@ Scene w/ AO applied:
 ![screenshot](example/tutorial/example.jpeg)
 (Left) Scene w/o AO, (Right) Scene w/ AO:  
 
-![screenshot](example/tutorial/contrast.jpeg)
+![screenshot](example/tutorial/contrast.jpeg)  
+
 
 
 # Installation

@@ -85,7 +85,6 @@ async function main() {
         camera.updateProjectionMatrix();
         renderer.setSize(clientWidth, clientHeight);
         composer.setSize(clientWidth, clientHeight);
-        defaultTexture.setSize(clientWidth, clientHeight);
     });
     const timerDOM = document.getElementById("aoTime");
     const aoMeta = document.getElementById("aoMetadata");

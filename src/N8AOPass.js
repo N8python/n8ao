@@ -126,7 +126,6 @@ class N8AOPass extends Pass {
         this.bluenoise.needsUpdate = true;
         this.lastTime = 0;
 
-
     }
     configureSampleDependentPasses() {
         this.configureAOPass();
@@ -231,6 +230,10 @@ class N8AOPass extends Pass {
             if (this.debugMode) {
                 gl = renderer.getContext();
                 ext = gl.getExtension('EXT_disjoint_timer_query_webgl2');
+                if (ext === null) {
+                    console.error("EXT_disjoint_timer_query_webgl2 not available, disabling debug mode.");
+                    this.debugMode = false;
+                }
             }
             if (this.debugMode) {
                 timerQuery = gl.createQuery();

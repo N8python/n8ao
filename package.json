@@ -1,6 +1,6 @@
 {
     "name": "n8ao",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "",
     "main": "dist/N8AO.js",
     "scripts": {
@@ -10,14 +10,14 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/N8python/ssao.git"
+        "url": "git+https://github.com/N8python/n8ao.git"
     },
     "author": "",
     "license": "ISC",
     "bugs": {
-        "url": "https://github.com/N8python/ssao/issues"
+        "url": "https://github.com/N8python/n8ao/issues"
     },
-    "homepage": "https://github.com/N8python/ssao#readme",
+    "homepage": "https://github.com/N8python/n8ao#readme",
     "targets": {
         "main": {}
     },

@@ -711,6 +711,10 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         if (this.debugMode) {
             gl = renderer.getContext();
             ext = gl.getExtension("EXT_disjoint_timer_query_webgl2");
+            if (ext === null) {
+                console.error("EXT_disjoint_timer_query_webgl2 not available, disabling debug mode.");
+                this.debugMode = false;
+            }
         }
         if (this.debugMode) {
             timerQuery = gl.createQuery();

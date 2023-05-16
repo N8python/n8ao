@@ -11,9 +11,11 @@ AO is critical for creating a sense of depth in any 3D scene, and it does so by 
 [Example](https://n8python.github.io/n8ao/example/)
 (Source code in /example)
   
-Scene w/ AO applied:
+Scene w/ AO applied:  
+
 ![screenshot](example/tutorial/example.jpeg)
-(Left) Scene w/o AO, (Right) Scene w/ AO:
+(Left) Scene w/o AO, (Right) Scene w/ AO:  
+
 ![screenshot](example/tutorial/contrast.jpeg)
 
 

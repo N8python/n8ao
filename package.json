@@ -1,11 +1,11 @@
 {
     "name": "n8ao",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "",
     "main": "dist/N8AO.js",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
-        "build": "parcel build src/N8AOPass.js && cp dist/N8AO.js example/N8AO.js",
+        "build": "parcel build src/N8AOPass.js && cp dist/N8AO.js example/N8AO.js && cp dist/N8AO.js.map example/N8AO.js.map",
         "dev": "nodemon --watch src --ext .js --exec 'npm run build' & live-server"
     },
     "repository": {

@@ -12,9 +12,9 @@ AO is critical for creating a sense of depth in any 3D scene, and it does so by 
 (Source code in /example)
   
 Scene w/ AO applied:
-![screenshot](example/tutorial/example.png)
+![screenshot](example/tutorial/example.jpeg)
 (Left) Scene w/o AO, (Right) Scene w/ AO:
-![screenshot](example/tutorial/contrast.png)
+![screenshot](example/tutorial/contrast.jpeg)
 
 
 # Installation
@@ -70,13 +70,13 @@ They are covered below:
 
 `aoRadius: number` - The most important parameter for your ambient occlusion effect. Controls the radius/size of the ambient occlusion in world units. Should be set to how far you want the occlusion to extend from a given object. Set it too low, and AO becomes an edge detector. Too high, and the AO becomes "soft" and might not highlight the details you want. The radius should be one or two magnitudes less than scene scale: if your scene is 10 units across, the radius should be between 0.1 and 1. If its 100, 1 to 10. 
 
-| <img src="example/tutorial/radius1.png" alt="Image 1"/> | <img src="example/tutorial/radius2.png" alt="Image 2"/> | <img src="example/tutorial/radius3.png" alt="Image 3"/> |
+| <img src="example/tutorial/radius1.jpeg" alt="Image 1"/> | <img src="example/tutorial/radius2.jpeg" alt="Image 2"/> | <img src="example/tutorial/radius3.jpeg" alt="Image 3"/> |
 |:---:|:---:|:---:|
 | Radius 1 | Radius 5 | Radius 10 |
 
 `distanceFalloff: number` - The second most important parameter for your ambient occlusion effect. Controls how fast the ambient occlusion fades away with distance in world units. Generally should be set to ~1/5 of your radius. Decreasing it reduces "haloing" artifacts and improves the accuracy of your occlusion, but making it too small makes the ambient occlusion disappear entirely. 
 
-| <img src="example/tutorial/distancefalloff1.png" alt="Image 1"/> | <img src="example/tutorial/distancefalloff2.png" alt="Image 2"/> | <img src="example/tutorial/distancefalloff3.png" alt="Image 3"/> |
+| <img src="example/tutorial/distancefalloff1.jpeg" alt="Image 1"/> | <img src="example/tutorial/distancefalloff2.jpeg" alt="Image 2"/> | <img src="example/tutorial/distancefalloff3.jpeg" alt="Image 3"/> |
 |:---:|:---:|:---:|
 | Distance Falloff 0.1 | Distance Falloff 1 | Distance Falloff 5 |
 
@@ -135,11 +135,11 @@ The display modes available are:
 
 | Display Mode | Description |
 |:---:|:---:|
-| Combined | Standard option, composites the AO effect onto the scene to modulate lighting - what you should use in production ![screenshot](example/tutorial/combined.png) |
-| AO | Shows only the AO effect as a black (completely occluded) and white (no occlusion) image ![screenshot](example/tutorial/ao.png) |
-| No AO | Shows only the scene without the AO effect  ![screenshot](example/tutorial/noao.png) |
-| Split | Shows the scene with and without the AO effect side-by-side (divided by a white line in the middle) ![screenshot](example/tutorial/split.png) |
-| Split AO | Shows the AO effect as a black and white image, and the scene with the AO effect applied side-by-side (divided by a white line in the middle) ![screenshot](example/tutorial/splitao.png) |
+| Combined | Standard option, composites the AO effect onto the scene to modulate lighting - what you should use in production ![screenshot](example/tutorial/combined.jpeg) |
+| AO | Shows only the AO effect as a black (completely occluded) and white (no occlusion) image ![screenshot](example/tutorial/ao.jpeg) |
+| No AO | Shows only the scene without the AO effect  ![screenshot](example/tutorial/noao.jpeg) |
+| Split | Shows the scene with and without the AO effect side-by-side (divided by a white line in the middle) ![screenshot](example/tutorial/split.jpeg) |
+| Split AO | Shows the AO effect as a black and white image, and the scene with the AO effect applied side-by-side (divided by a white line in the middle) ![screenshot](example/tutorial/splitao.jpeg) |
 
 # Compatability
 

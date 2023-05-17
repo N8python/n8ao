@@ -13,12 +13,11 @@ AO is critical for creating a sense of depth in any 3D scene, and it does so by 
   
 Scene w/ AO applied:  
 
-![screenshot](example/tutorial/example.jpeg)  
+[![screenshot](example/tutorial/example.jpeg)](https://n8python.github.io/n8ao/example/)
 
 (Left) Scene w/o AO, (Right) Scene w/ AO:  
 
-![screenshot](example/tutorial/contrast.jpeg)  
-
+[![screenshot](example/tutorial/contrast.jpeg)](https://n8python.github.io/n8ao/example/)
 
 
 # Installation
@@ -145,7 +144,7 @@ The display modes available are:
 | Split | Shows the scene with and without the AO effect side-by-side (divided by a white line in the middle) ![screenshot](example/tutorial/split.jpeg) |
 | Split AO | Shows the AO effect as a black and white image, and the scene with the AO effect applied side-by-side (divided by a white line in the middle) ![screenshot](example/tutorial/splitao.jpeg) |
 
-# Compatability
+# Compatibility
 
 `N8AOPass` is compatible with all modern browsers that support WebGL 2.0 (WebGL 1 is not supported), but using three.js version r152 or later is recommended. 
 

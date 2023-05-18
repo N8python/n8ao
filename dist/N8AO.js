@@ -175,6 +175,7 @@ void main() {
       }
       vec3 worldPos = getWorldPos(depth, vUv);
       vec3 normal = computeNormal(worldPos, vUv);
+      float bias = fwidth(distance(worldPos, cameraPos)) / radius;
       vec4 noise = texture2D(bluenoise, vUv * (resolution / vec2(128.0)));
       vec3 randomVec = normalize(noise.rgb * 2.0 - 1.0);
       vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
@@ -203,7 +204,7 @@ void main() {
         float distWorld = ortho ? linearize_depth_ortho(offset.z, near, far) : linearize_depth(offset.z, near, far);
         float rangeCheck = smoothstep(0.0, 1.0, distanceFalloff / (abs(distSample - distWorld)));
         float weight = dot(sampleDirection, normal);
-          occluded += rangeCheck * weight * (distSample < distWorld ? 1.0 : 0.0);
+          occluded += rangeCheck * weight * (distSample + bias < distWorld ? 1.0 : 0.0);
           totalWeight += weight;
       }
       float occ = clamp(1.0 - occluded / totalWeight, 0.0, 1.0);

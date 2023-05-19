@@ -22,7 +22,7 @@
         "main": {}
     },
     "peerDependencies": {
-        "three": "^0.152.2"
+        "three": ">=0.137"
     },
     "type": "module",
     "devDependencies": {

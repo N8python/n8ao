@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Pass, FullScreenQuad } from "three/addons/postprocessing/Pass.js";
+import { Pass, FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
 import { EffectShader } from './EffectShader.js';
 import { EffectCompositer } from './EffectCompositer.js';
 import { PoissionBlur } from './PoissionBlur.js';

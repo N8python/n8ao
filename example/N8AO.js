@@ -1,5 +1,5 @@
 import {ShaderMaterial as $5Whe3$ShaderMaterial, WebGLRenderTarget as $5Whe3$WebGLRenderTarget, LinearFilter as $5Whe3$LinearFilter, NearestFilter as $5Whe3$NearestFilter, DepthTexture as $5Whe3$DepthTexture, UnsignedIntType as $5Whe3$UnsignedIntType, DepthFormat as $5Whe3$DepthFormat, DataTexture as $5Whe3$DataTexture, NoColorSpace as $5Whe3$NoColorSpace, RepeatWrapping as $5Whe3$RepeatWrapping, Vector3 as $5Whe3$Vector3, Vector2 as $5Whe3$Vector2, Matrix4 as $5Whe3$Matrix4} from "three";
-import {FullScreenQuad as $5Whe3$FullScreenQuad, Pass as $5Whe3$Pass} from "three/addons/postprocessing/Pass.js";
+import {FullScreenQuad as $5Whe3$FullScreenQuad, Pass as $5Whe3$Pass} from "three/examples/jsm/postprocessing/Pass.js";
 
 
 

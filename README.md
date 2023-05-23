@@ -56,6 +56,30 @@ Gamma correction is enabled by default, but it should be disabled if you have a 
 n8aopass.configuration.gammaCorrection = false;
 ```
 
+# Usage (Postprocessing)
+
+If you are using the pmndrs/postprocessing package, N8AO is compatible with it. Simply do:
+
+```js
+import { N8AOPostPass } from "n8ao";
+import { EffectComposer, RenderPass } from "postprocessing";
+
+// ... 
+
+const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const n8aopass = new N8AOPostPass(
+        scene,
+        camera,
+        clientWidth,
+        clientHeight
+    );
+    composer.addPass(n8aopass)
+    composer.addPass(new EffectPass(camera, new SMAAEffect({
+        preset: SMAAPreset.ULTRA
+    })));
+```
+
 # Usage (Detailed)
 
 `N8AOPass` is designed to be as easy to use as possible. It works with logarithmic depth buffers and orthographic cameras, supports materials with custom vertex displacement and alpha clipping, and automatically detects the presence of these things so you do not need to deal with user-side configuration.

@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { Pass, FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
+import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
+import { Pass } from "postprocessing";
 import { EffectShader } from './EffectShader.js';
 import { EffectCompositer } from './EffectCompositer.js';
 import { PoissionBlur } from './PoissionBlur.js';
-import { N8AOPostPass } from './N8AOPostPass.js';
 import BlueNoise from './BlueNoise.js';
 const bluenoiseBits = Uint8Array.from(atob(BlueNoise), c => c.charCodeAt(0));
 
@@ -26,7 +26,7 @@ function checkTimerQuery(timerQuery, gl, pass) {
         }, 1);
     }
 }
-class N8AOPass extends Pass {
+class N8AOPostPass extends Pass {
     /**
      * 
      * @param {THREE.Scene} scene
@@ -71,7 +71,7 @@ class N8AOPass extends Pass {
             intensity: 5,
             denoiseIterations: 2.0,
             renderMode: 0,
-            gammaCorrection: true,
+            gammaCorrection: false,
             logarithmicDepthBuffer: false
         }, {
             set: (target, propName, value) => {
@@ -94,13 +94,27 @@ class N8AOPass extends Pass {
         this.samplesDenoise = [];
         this.configureSampleDependentPasses();
         this.effectCompisterQuad = new FullScreenQuad(new THREE.ShaderMaterial(EffectCompositer));
-        this.beautyRenderTarget = new THREE.WebGLRenderTarget(this.width, this.height, {
-            minFilter: THREE.LinearFilter,
-            magFilter: THREE.NearestFilter
-        });
-        this.beautyRenderTarget.depthTexture = new THREE.DepthTexture(this.width, this.height, THREE.UnsignedIntType);
-        this.beautyRenderTarget.depthTexture.format = THREE.DepthFormat;
-
+        this.copyQuad = new FullScreenQuad(new THREE.ShaderMaterial({
+            uniforms: {
+                tDiffuse: {
+                    value: null
+                }
+            },
+            vertexShader: `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+            }
+            `,
+            fragmentShader: `
+            uniform sampler2D tDiffuse;
+            varying vec2 vUv;
+            void main() {
+                gl_FragColor = texture2D(tDiffuse, vUv);
+            }
+            `
+        }))
         this.writeTargetInternal = new THREE.WebGLRenderTarget(this.width, this.height, {
             minFilter: THREE.LinearFilter,
             magFilter: THREE.LinearFilter,
@@ -126,6 +140,7 @@ class N8AOPass extends Pass {
         this.bluenoise.magFilter = THREE.NearestFilter;
         this.bluenoise.needsUpdate = true;
         this.lastTime = 0;
+        this.needsDepthTexture = true;
 
     }
     configureSampleDependentPasses() {
@@ -215,11 +230,15 @@ class N8AOPass extends Pass {
     setSize(width, height) {
         this.width = width;
         this.height = height;
-        this.beautyRenderTarget.setSize(width, height);
         this.writeTargetInternal.setSize(width, height);
         this.readTargetInternal.setSize(width, height);
     }
-    render(renderer, writeBuffer, readBuffer, deltaTime, maskActive) {
+    render(renderer, inputBuffer, outputBuffer) {
+            // Copy inputBuffer to outputBuffer
+            //renderer.setRenderTarget(outputBuffer);
+            //  this.copyQuad.material.uniforms.tDiffuse.value = inputBuffer.texture;
+            //   this.copyQuad.render(renderer);
+
             if (renderer.capabilities.logarithmicDepthBuffer !== this.configuration.logarithmicDepthBuffer) {
                 this.configuration.logarithmicDepthBuffer = renderer.capabilities.logarithmicDepthBuffer;
                 this.configureAOPass(this.configuration.logarithmicDepthBuffer);
@@ -240,12 +259,9 @@ class N8AOPass extends Pass {
                 timerQuery = gl.createQuery();
                 gl.beginQuery(ext.TIME_ELAPSED_EXT, timerQuery);
             }
-            renderer.setRenderTarget(this.beautyRenderTarget);
-            renderer.render(this.scene, this.camera);
-
             this.camera.updateMatrixWorld();
-            this.effectShaderQuad.material.uniforms["sceneDiffuse"].value = this.beautyRenderTarget.texture;
-            this.effectShaderQuad.material.uniforms["sceneDepth"].value = this.beautyRenderTarget.depthTexture;
+            this.effectShaderQuad.material.uniforms["sceneDiffuse"].value = inputBuffer.texture;
+            this.effectShaderQuad.material.uniforms["sceneDepth"].value = inputBuffer.depthTexture;
             this.effectShaderQuad.material.uniforms["projMat"].value = this.camera.projectionMatrix;
             this.effectShaderQuad.material.uniforms["viewMat"].value = this.camera.matrixWorldInverse;
             this.effectShaderQuad.material.uniforms["projViewMat"].value = this.camera.projectionMatrix.clone().multiply(this.camera.matrixWorldInverse.clone());
@@ -271,7 +287,7 @@ class N8AOPass extends Pass {
             for (let i = 0; i < this.configuration.denoiseIterations; i++) {
                 [this.writeTargetInternal, this.readTargetInternal] = [this.readTargetInternal, this.writeTargetInternal];
                 this.poissonBlurQuad.material.uniforms["tDiffuse"].value = this.readTargetInternal.texture;
-                this.poissonBlurQuad.material.uniforms["sceneDepth"].value = this.beautyRenderTarget.depthTexture;
+                this.poissonBlurQuad.material.uniforms["sceneDepth"].value = inputBuffer.depthTexture;
                 this.poissonBlurQuad.material.uniforms["projMat"].value = this.camera.projectionMatrix;
                 this.poissonBlurQuad.material.uniforms["viewMat"].value = this.camera.matrixWorldInverse;
                 this.poissonBlurQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
@@ -294,8 +310,8 @@ class N8AOPass extends Pass {
             // Now, we have the blurred AO in writeTargetInternal
             // End the blur
             // Start the composition
-            this.effectCompisterQuad.material.uniforms["sceneDiffuse"].value = this.beautyRenderTarget.texture;
-            this.effectCompisterQuad.material.uniforms["sceneDepth"].value = this.beautyRenderTarget.depthTexture;
+            this.effectCompisterQuad.material.uniforms["sceneDiffuse"].value = inputBuffer.texture;
+            this.effectCompisterQuad.material.uniforms["sceneDepth"].value = inputBuffer.depthTexture;
             this.effectCompisterQuad.material.uniforms["resolution"].value = new THREE.Vector2(this.width, this.height);
             this.effectCompisterQuad.material.uniforms["blueNoise"].value = this.bluenoise;
             this.effectCompisterQuad.material.uniforms["intensity"].value = this.configuration.intensity;
@@ -304,7 +320,7 @@ class N8AOPass extends Pass {
             this.effectCompisterQuad.material.uniforms["tDiffuse"].value = this.writeTargetInternal.texture;
             renderer.setRenderTarget(
                 this.renderToScreen ? null :
-                writeBuffer
+                outputBuffer
             );
             this.effectCompisterQuad.render(renderer);
             if (this.debugMode) {
@@ -360,4 +376,4 @@ class N8AOPass extends Pass {
 
     }
 }
-export { N8AOPass, N8AOPostPass };
+export { N8AOPostPass };

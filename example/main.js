@@ -35,6 +35,7 @@ async function main() {
         "skybox/Box_Front.bmp",
         "skybox/Box_Back.bmp"
     ]);
+    environment.colorSpace = THREE.SRGBColorSpace;
     scene.background = environment;
     const torusKnot = new THREE.Mesh(new THREE.TorusKnotGeometry(5, 1.5, 200, 32), new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, envMap: environment, metalness: 0.5, roughness: 0.5, color: new THREE.Color(0.0, 1.0, 0.0) }));
     torusKnot.position.y = 8.5;

@@ -28,6 +28,7 @@ From cdn: `import {N8AOPass} from "https://unpkg.com/n8ao@latest/dist/N8AO.js"`
 
 Or just download `dist/N8AO.js` and `import {N8AOPass} from "N8AO.js"`
 
+In order to ensure maximum compatibility, you must have the packages "three" and "postprocessing" defined in your environment - you can do this by CDN, as in the examples, or by installing them via npm.
 # Usage
 
 It's very simple - `N8AOPass` is just a threejs postprocessing pass.
@@ -67,18 +68,24 @@ import { EffectComposer, RenderPass } from "postprocessing";
 // ... 
 
 const composer = new EffectComposer(renderer);
-    composer.addPass(new RenderPass(scene, camera));
-    const n8aopass = new N8AOPostPass(
-        scene,
-        camera,
-        clientWidth,
-        clientHeight
-    );
-    composer.addPass(n8aopass)
-    composer.addPass(new EffectPass(camera, new SMAAEffect({
-        preset: SMAAPreset.ULTRA
-    })));
+/* Only difference is that N8AOPostPass requires a RenderPass before it, whereas N8AOPass replaces the render pass. Everything else is identical. */
+composer.addPass(new RenderPass(scene, camera));
+const n8aopass = new N8AOPostPass(
+    scene,
+    camera,
+    width,
+    height
+);
+composer.addPass(n8aopass)
+
+/* SMAA Recommended */
+composer.addPass(new EffectPass(camera, new SMAAEffect({
+    preset: SMAAPreset.ULTRA
+})));
 ```
+N8AOPostPass's API is identical to that of N8AOPass (so all docs below apply), except it is compatible with pmndrs/postprocessing. 
+
+Small note: N8AOPostPass's `configuration.gammaCorrection` is set to `false` by default, as postprocessing handles gamma correction for you.
 
 # Usage (Detailed)
 
@@ -172,7 +179,7 @@ The display modes available are:
 
 `N8AOPass` is compatible with all modern browsers that support WebGL 2.0 (WebGL 1 is not supported), but using three.js version r152 or later is recommended. 
 
-The pass is self-contained, and renders the scene automatically. The render target containing the scene texture (and depth) is available as `n8aopass.beautyRenderTarget` if you wish to use it for other purposes (for instance, using a depth buffer later in the rendering pipeline). All pass logic is self-contained and the pass should not be hard to modify if necessary (for instance, to integrate it into a non-vanilla postprocessing pipeline - like pmndrs/postprocessing).
+The pass is self-contained, and renders the scene automatically. The render target containing the scene texture (and depth) is available as `n8aopass.beautyRenderTarget` if you wish to use it for other purposes (for instance, using a depth buffer later in the rendering pipeline). All pass logic is self-contained and the pass should not be hard to modify if necessary.
 
 # Limitations
 

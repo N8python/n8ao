@@ -91,12 +91,14 @@ Small note: N8AOPostPass's `configuration.gammaCorrection` is set to `false` by 
 
 `N8AOPass` is designed to be as easy to use as possible. It works with logarithmic depth buffers and orthographic cameras, supports materials with custom vertex displacement and alpha clipping, and automatically detects the presence of these things so you do not need to deal with user-side configuration.
 
-However, some tweaking is often necessary to make sure your AO effect looks proper and does not suffer from artifacts. There are three principal parameters that control the visual "look" of the AO effect: `aoRadius`, `distanceFalloff`, and `intensity`. They can be changed in the following manner:
+However, some tweaking is often necessary to make sure your AO effect looks proper and does not suffer from artifacts. There are four principal parameters that control the visual "look" of the AO effect: `aoRadius`, `distanceFalloff`, `intensity`, and `color`. They can be changed in the following manner:
 
 ```js
 n8aopass.configuration.aoRadius = 5.0;
 n8aopass.configuration.distanceFalloff = 1.0;
 n8aopass.configuration.intensity = 5.0;
+n8aopass.configuration.color = new THREE.Color(0, 0, 0);
+
 ```
 
 They are covered below:
@@ -115,6 +117,12 @@ They are covered below:
 | Distance Falloff 0.1 | Distance Falloff 1 | Distance Falloff 5 |
 
 `intensity: number` - A purely artistic control for the intensity of the AO - runs the ao through the function `pow(ao, intensity)`, which has the effect of darkening areas with more ambient occlusion. Useful to make the effect more pronounced. An intensity of 2 generally produces soft ambient occlusion that isn't too noticeable, whereas one of 5 produces heavily prominent ambient occlusion. 
+
+`color: THREE.Color` - The color of the ambient occlusion. By default, it is black, but it can be changed to any color to offer a crude approximation of global illumination. Recommended in scenes where bounced light has a uniform "color", for instance a scene that is predominantly lit by a blue sky. The color is expected to be in the sRGB color space, and is automatically converted to linear space for you. Keep the color pretty dark for sensible results.
+
+| <img src="example/tutorial/color1.jpeg" alt="Image 1"/> | <img src="example/tutorial/color2.jpeg" alt="Image 2"/> | <img src="example/tutorial/color3.jpeg" alt="Image 3"/> |
+|:---:|:---:|:---:|
+| Color Black (Normal AO) | Color Blue (Appropriate) | Color Red (Too Bright) |
 
 # Performance
 

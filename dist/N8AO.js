@@ -1,4 +1,4 @@
-import {ShaderMaterial as $5Whe3$ShaderMaterial, WebGLRenderTarget as $5Whe3$WebGLRenderTarget, LinearFilter as $5Whe3$LinearFilter, NearestFilter as $5Whe3$NearestFilter, DepthTexture as $5Whe3$DepthTexture, UnsignedIntType as $5Whe3$UnsignedIntType, DepthFormat as $5Whe3$DepthFormat, DataTexture as $5Whe3$DataTexture, NoColorSpace as $5Whe3$NoColorSpace, RepeatWrapping as $5Whe3$RepeatWrapping, Vector3 as $5Whe3$Vector3, Vector2 as $5Whe3$Vector2, Matrix4 as $5Whe3$Matrix4} from "three";
+import {Color as $5Whe3$Color, ShaderMaterial as $5Whe3$ShaderMaterial, WebGLRenderTarget as $5Whe3$WebGLRenderTarget, LinearFilter as $5Whe3$LinearFilter, NearestFilter as $5Whe3$NearestFilter, DepthTexture as $5Whe3$DepthTexture, UnsignedIntType as $5Whe3$UnsignedIntType, DepthFormat as $5Whe3$DepthFormat, DataTexture as $5Whe3$DataTexture, NoColorSpace as $5Whe3$NoColorSpace, RepeatWrapping as $5Whe3$RepeatWrapping, Vector2 as $5Whe3$Vector2, Vector3 as $5Whe3$Vector3, Matrix4 as $5Whe3$Matrix4} from "three";
 import {FullScreenQuad as $5Whe3$FullScreenQuad, Pass as $5Whe3$Pass} from "three/examples/jsm/postprocessing/Pass.js";
 import {Pass as $5Whe3$Pass1} from "postprocessing";
 
@@ -253,6 +253,9 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
         "resolution": {
             value: new $5Whe3$Vector2()
         },
+        "color": {
+            value: new $5Whe3$Vector3(0, 0, 0)
+        },
         "blueNoise": {
             value: null
         },
@@ -281,6 +284,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
     uniform sampler2D tDiffuse;
     uniform sampler2D blueNoise;
     uniform vec2 resolution;
+    uniform vec3 color;
     uniform float intensity;
     uniform float renderMode;
     uniform bool gammaCorrection;
@@ -297,9 +301,9 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
         vec4 sceneTexel = texture2D(sceneDiffuse, vUv);
         float finalAo = pow(texel.a, intensity);
         if (renderMode == 0.0) {
-            gl_FragColor = vec4( sceneTexel.rgb *finalAo, sceneTexel.a);
+            gl_FragColor = vec4( mix(sceneTexel.rgb, color, 1.0 - finalAo), sceneTexel.a);
         } else if (renderMode == 1.0) {
-            gl_FragColor = vec4( vec3(finalAo), sceneTexel.a);
+            gl_FragColor = vec4( mix(vec3(1.0), color, 1.0 - finalAo), sceneTexel.a);
         } else if (renderMode == 2.0) {
             gl_FragColor = vec4( sceneTexel.rgb, sceneTexel.a);
         } else if (renderMode == 3.0) {
@@ -308,7 +312,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
             } else if (abs(vUv.x - 0.5) < 1.0 / resolution.x) {
                 gl_FragColor = vec4(1.0);
             } else {
-                gl_FragColor = vec4( sceneTexel.rgb *finalAo, sceneTexel.a);
+                gl_FragColor = vec4( mix(sceneTexel.rgb, color, 1.0 - finalAo), sceneTexel.a);
             }
         } else if (renderMode == 4.0) {
             if (vUv.x < 0.5) {
@@ -316,7 +320,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
             } else if (abs(vUv.x - 0.5) < 1.0 / resolution.x) {
                 gl_FragColor = vec4(1.0);
             } else {
-                gl_FragColor = vec4( vec3(finalAo), sceneTexel.a);
+                gl_FragColor = vec4( mix(vec3(1.0), color, 1.0 - finalAo), sceneTexel.a);
             }
         }
         #include <dithering_fragment>
@@ -596,6 +600,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
             intensity: 5,
             denoiseIterations: 2.0,
             renderMode: 0,
+            color: new $5Whe3$Color(0, 0, 0),
             gammaCorrection: true,
             logarithmicDepthBuffer: false
         }, {
@@ -653,6 +658,8 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         this.bluenoise.needsUpdate = true;
         this.lastTime = 0;
         this.needsDepthTexture = true;
+        this._r = new $5Whe3$Vector2();
+        this._c = new $5Whe3$Color();
     }
     configureSampleDependentPasses() {
         this.configureAOPass();
@@ -768,7 +775,8 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         this.effectShaderQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
         this.effectShaderQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
         this.effectShaderQuad.material.uniforms["cameraPos"].value = this.camera.position;
-        this.effectShaderQuad.material.uniforms["resolution"].value = new $5Whe3$Vector2(this.width, this.height);
+        this._r.set(this.width, this.height);
+        this.effectShaderQuad.material.uniforms["resolution"].value = this._r;
         this.effectShaderQuad.material.uniforms["time"].value = performance.now() / 1000;
         this.effectShaderQuad.material.uniforms["samples"].value = this.samples;
         this.effectShaderQuad.material.uniforms["samplesR"].value = this.samplesR;
@@ -796,7 +804,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
             this.poissonBlurQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
             this.poissonBlurQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
             this.poissonBlurQuad.material.uniforms["cameraPos"].value = this.camera.position;
-            this.poissonBlurQuad.material.uniforms["resolution"].value = new $5Whe3$Vector2(this.width, this.height);
+            this.poissonBlurQuad.material.uniforms["resolution"].value = this._r;
             this.poissonBlurQuad.material.uniforms["time"].value = performance.now() / 1000;
             this.poissonBlurQuad.material.uniforms["blueNoise"].value = this.bluenoise;
             this.poissonBlurQuad.material.uniforms["radius"].value = this.configuration.denoiseRadius;
@@ -814,12 +822,13 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         // Start the composition
         this.effectCompisterQuad.material.uniforms["sceneDiffuse"].value = inputBuffer.texture;
         this.effectCompisterQuad.material.uniforms["sceneDepth"].value = inputBuffer.depthTexture;
-        this.effectCompisterQuad.material.uniforms["resolution"].value = new $5Whe3$Vector2(this.width, this.height);
+        this.effectCompisterQuad.material.uniforms["resolution"].value = this._r;
         this.effectCompisterQuad.material.uniforms["blueNoise"].value = this.bluenoise;
         this.effectCompisterQuad.material.uniforms["intensity"].value = this.configuration.intensity;
         this.effectCompisterQuad.material.uniforms["renderMode"].value = this.configuration.renderMode;
         this.effectCompisterQuad.material.uniforms["gammaCorrection"].value = this.autosetGamma ? this.renderToScreen : this.configuration.gammaCorrection;
         this.effectCompisterQuad.material.uniforms["tDiffuse"].value = this.writeTargetInternal.texture;
+        this.effectCompisterQuad.material.uniforms["color"].value = this._c.copy(this.configuration.color).convertSRGBToLinear();
         renderer.setRenderTarget(this.renderToScreen ? null : outputBuffer);
         this.effectCompisterQuad.render(renderer);
         if (this.debugMode) {
@@ -937,6 +946,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             intensity: 5,
             denoiseIterations: 2.0,
             renderMode: 0,
+            color: new $5Whe3$Color(0, 0, 0),
             gammaCorrection: true,
             logarithmicDepthBuffer: false
         }, {
@@ -977,6 +987,8 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         this.bluenoise.magFilter = $5Whe3$NearestFilter;
         this.bluenoise.needsUpdate = true;
         this.lastTime = 0;
+        this._r = new $5Whe3$Vector2();
+        this._c = new $5Whe3$Color();
     }
     configureSampleDependentPasses() {
         this.configureAOPass();
@@ -1091,7 +1103,8 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         this.effectShaderQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
         this.effectShaderQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
         this.effectShaderQuad.material.uniforms["cameraPos"].value = this.camera.position;
-        this.effectShaderQuad.material.uniforms["resolution"].value = new $5Whe3$Vector2(this.width, this.height);
+        this._r.set(this.width, this.height);
+        this.effectShaderQuad.material.uniforms["resolution"].value = this._r;
         this.effectShaderQuad.material.uniforms["time"].value = performance.now() / 1000;
         this.effectShaderQuad.material.uniforms["samples"].value = this.samples;
         this.effectShaderQuad.material.uniforms["samplesR"].value = this.samplesR;
@@ -1119,7 +1132,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             this.poissonBlurQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
             this.poissonBlurQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
             this.poissonBlurQuad.material.uniforms["cameraPos"].value = this.camera.position;
-            this.poissonBlurQuad.material.uniforms["resolution"].value = new $5Whe3$Vector2(this.width, this.height);
+            this.poissonBlurQuad.material.uniforms["resolution"].value = this._r;
             this.poissonBlurQuad.material.uniforms["time"].value = performance.now() / 1000;
             this.poissonBlurQuad.material.uniforms["blueNoise"].value = this.bluenoise;
             this.poissonBlurQuad.material.uniforms["radius"].value = this.configuration.denoiseRadius;
@@ -1137,12 +1150,13 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         // Start the composition
         this.effectCompisterQuad.material.uniforms["sceneDiffuse"].value = this.beautyRenderTarget.texture;
         this.effectCompisterQuad.material.uniforms["sceneDepth"].value = this.beautyRenderTarget.depthTexture;
-        this.effectCompisterQuad.material.uniforms["resolution"].value = new $5Whe3$Vector2(this.width, this.height);
+        this.effectCompisterQuad.material.uniforms["resolution"].value = this._r;
         this.effectCompisterQuad.material.uniforms["blueNoise"].value = this.bluenoise;
         this.effectCompisterQuad.material.uniforms["intensity"].value = this.configuration.intensity;
         this.effectCompisterQuad.material.uniforms["renderMode"].value = this.configuration.renderMode;
         this.effectCompisterQuad.material.uniforms["gammaCorrection"].value = this.configuration.gammaCorrection;
         this.effectCompisterQuad.material.uniforms["tDiffuse"].value = this.writeTargetInternal.texture;
+        this.effectCompisterQuad.material.uniforms["color"].value = this._c.copy(this.configuration.color).convertSRGBToLinear();
         renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
         this.effectCompisterQuad.render(renderer);
         if (this.debugMode) {

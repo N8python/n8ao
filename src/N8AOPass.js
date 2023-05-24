@@ -58,6 +58,7 @@ class N8AOPass extends Pass {
          * intensity: number,
          * denoiseIterations: number,
          * renderMode: 0 | 1 | 2 | 3 | 4,
+         * color: THREE.Color,
          * gammaCorrection: Boolean,
          * logarithmicDepthBuffer: Boolean
          * }
@@ -71,6 +72,7 @@ class N8AOPass extends Pass {
             intensity: 5,
             denoiseIterations: 2.0,
             renderMode: 0,
+            color: new THREE.Color(0, 0, 0),
             gammaCorrection: true,
             logarithmicDepthBuffer: false
         }, {
@@ -126,6 +128,8 @@ class N8AOPass extends Pass {
         this.bluenoise.magFilter = THREE.NearestFilter;
         this.bluenoise.needsUpdate = true;
         this.lastTime = 0;
+        this._r = new THREE.Vector2();
+        this._c = new THREE.Color();
 
     }
     configureSampleDependentPasses() {
@@ -252,7 +256,8 @@ class N8AOPass extends Pass {
             this.effectShaderQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
             this.effectShaderQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
             this.effectShaderQuad.material.uniforms["cameraPos"].value = this.camera.position;
-            this.effectShaderQuad.material.uniforms['resolution'].value = new THREE.Vector2(this.width, this.height);
+            this._r.set(this.width, this.height);
+            this.effectShaderQuad.material.uniforms['resolution'].value = this._r;
             this.effectShaderQuad.material.uniforms['time'].value = performance.now() / 1000;
             this.effectShaderQuad.material.uniforms['samples'].value = this.samples;
             this.effectShaderQuad.material.uniforms['samplesR'].value = this.samplesR;
@@ -277,7 +282,7 @@ class N8AOPass extends Pass {
                 this.poissonBlurQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
                 this.poissonBlurQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
                 this.poissonBlurQuad.material.uniforms["cameraPos"].value = this.camera.position;
-                this.poissonBlurQuad.material.uniforms['resolution'].value = new THREE.Vector2(this.width, this.height);
+                this.poissonBlurQuad.material.uniforms['resolution'].value = this._r;
                 this.poissonBlurQuad.material.uniforms['time'].value = performance.now() / 1000;
                 this.poissonBlurQuad.material.uniforms['blueNoise'].value = this.bluenoise;
                 this.poissonBlurQuad.material.uniforms['radius'].value = this.configuration.denoiseRadius;
@@ -296,12 +301,15 @@ class N8AOPass extends Pass {
             // Start the composition
             this.effectCompisterQuad.material.uniforms["sceneDiffuse"].value = this.beautyRenderTarget.texture;
             this.effectCompisterQuad.material.uniforms["sceneDepth"].value = this.beautyRenderTarget.depthTexture;
-            this.effectCompisterQuad.material.uniforms["resolution"].value = new THREE.Vector2(this.width, this.height);
+            this.effectCompisterQuad.material.uniforms["resolution"].value = this._r;
             this.effectCompisterQuad.material.uniforms["blueNoise"].value = this.bluenoise;
             this.effectCompisterQuad.material.uniforms["intensity"].value = this.configuration.intensity;
             this.effectCompisterQuad.material.uniforms["renderMode"].value = this.configuration.renderMode;
             this.effectCompisterQuad.material.uniforms["gammaCorrection"].value = this.configuration.gammaCorrection;
             this.effectCompisterQuad.material.uniforms["tDiffuse"].value = this.writeTargetInternal.texture;
+            this.effectCompisterQuad.material.uniforms["color"].value = this._c.copy(
+                this.configuration.color
+            ).convertSRGBToLinear();
             renderer.setRenderTarget(
                 this.renderToScreen ? null :
                 writeBuffer

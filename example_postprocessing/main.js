@@ -64,7 +64,8 @@ async function main() {
         aoRadius: 5.0,
         distanceFalloff: 1.0,
         intensity: 5.0,
-        renderMode: "Combined"
+        renderMode: "Combined",
+        color: [0, 0, 0]
     };
     const gui = new GUI();
     gui.add(effectController, "aoSamples", 1.0, 64.0, 1.0);
@@ -73,6 +74,7 @@ async function main() {
     gui.add(effectController, "aoRadius", 1.0, 10.0, 0.01);
     gui.add(effectController, "distanceFalloff", 0.0, 10.0, 0.01);
     gui.add(effectController, "intensity", 0.0, 10.0, 0.01);
+    gui.addColor(effectController, "color");
     gui.add(effectController, "renderMode", ["Combined", "AO", "No AO", "Split", "Split AO"]);
     // Post Effects
     //  const composer = new EffectComposer(renderer);
@@ -121,6 +123,7 @@ async function main() {
         n8aopass.configuration.denoiseRadius = effectController.denoiseRadius;
         n8aopass.configuration.denoiseSamples = effectController.denoiseSamples;
         n8aopass.configuration.renderMode = ["Combined", "AO", "No AO", "Split", "Split AO"].indexOf(effectController.renderMode);
+        n8aopass.configuration.color = new THREE.Color(effectController.color[0], effectController.color[1], effectController.color[2]);
 
 
         composer.render();

@@ -11,6 +11,7 @@ const EffectCompositer = {
         'viewMatrixInv': { value: new THREE.Matrix4() },
         'cameraPos': { value: new THREE.Vector3() },
         'resolution': { value: new THREE.Vector2() },
+        'color': { value: new THREE.Vector3(0, 0, 0) },
         'blueNoise': { value: null },
         'time': { value: 0.0 },
         'intensity': { value: 10.0 },
@@ -29,6 +30,7 @@ const EffectCompositer = {
     uniform sampler2D tDiffuse;
     uniform sampler2D blueNoise;
     uniform vec2 resolution;
+    uniform vec3 color;
     uniform float intensity;
     uniform float renderMode;
     uniform bool gammaCorrection;
@@ -45,9 +47,9 @@ const EffectCompositer = {
         vec4 sceneTexel = texture2D(sceneDiffuse, vUv);
         float finalAo = pow(texel.a, intensity);
         if (renderMode == 0.0) {
-            gl_FragColor = vec4( sceneTexel.rgb *finalAo, sceneTexel.a);
+            gl_FragColor = vec4( mix(sceneTexel.rgb, color, 1.0 - finalAo), sceneTexel.a);
         } else if (renderMode == 1.0) {
-            gl_FragColor = vec4( vec3(finalAo), sceneTexel.a);
+            gl_FragColor = vec4( mix(vec3(1.0), color, 1.0 - finalAo), sceneTexel.a);
         } else if (renderMode == 2.0) {
             gl_FragColor = vec4( sceneTexel.rgb, sceneTexel.a);
         } else if (renderMode == 3.0) {
@@ -56,7 +58,7 @@ const EffectCompositer = {
             } else if (abs(vUv.x - 0.5) < 1.0 / resolution.x) {
                 gl_FragColor = vec4(1.0);
             } else {
-                gl_FragColor = vec4( sceneTexel.rgb *finalAo, sceneTexel.a);
+                gl_FragColor = vec4( mix(sceneTexel.rgb, color, 1.0 - finalAo), sceneTexel.a);
             }
         } else if (renderMode == 4.0) {
             if (vUv.x < 0.5) {
@@ -64,7 +66,7 @@ const EffectCompositer = {
             } else if (abs(vUv.x - 0.5) < 1.0 / resolution.x) {
                 gl_FragColor = vec4(1.0);
             } else {
-                gl_FragColor = vec4( vec3(finalAo), sceneTexel.a);
+                gl_FragColor = vec4( mix(vec3(1.0), color, 1.0 - finalAo), sceneTexel.a);
             }
         }
         #include <dithering_fragment>

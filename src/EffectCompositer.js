@@ -42,28 +42,29 @@ const EffectCompositer = {
     #include <dithering_pars_fragment>
     void main() {
         vec4 texel = texture2D(tDiffuse, vUv);//vec3(0.0);
+        vec4 sceneTexel = texture2D(sceneDiffuse, vUv);
         float finalAo = pow(texel.a, intensity);
         if (renderMode == 0.0) {
-            gl_FragColor = vec4( texture2D(sceneDiffuse, vUv).rgb *finalAo, 1.0);
+            gl_FragColor = vec4( sceneTexel.rgb *finalAo, sceneTexel.a);
         } else if (renderMode == 1.0) {
-            gl_FragColor = vec4( vec3(finalAo), 1.0);
+            gl_FragColor = vec4( vec3(finalAo), sceneTexel.a);
         } else if (renderMode == 2.0) {
-            gl_FragColor = vec4( texture2D(sceneDiffuse, vUv).rgb, 1.0);
+            gl_FragColor = vec4( sceneTexel.rgb, sceneTexel.a);
         } else if (renderMode == 3.0) {
             if (vUv.x < 0.5) {
-                gl_FragColor = vec4( texture2D(sceneDiffuse, vUv).rgb, 1.0);
+                gl_FragColor = vec4( sceneTexel.rgb, sceneTexel.a);
             } else if (abs(vUv.x - 0.5) < 1.0 / resolution.x) {
                 gl_FragColor = vec4(1.0);
             } else {
-                gl_FragColor = vec4( texture2D(sceneDiffuse, vUv).rgb *finalAo, 1.0);
+                gl_FragColor = vec4( sceneTexel.rgb *finalAo, sceneTexel.a);
             }
         } else if (renderMode == 4.0) {
             if (vUv.x < 0.5) {
-                gl_FragColor = vec4( texture2D(sceneDiffuse, vUv).rgb, 1.0);
+                gl_FragColor = vec4( sceneTexel.rgb, sceneTexel.a);
             } else if (abs(vUv.x - 0.5) < 1.0 / resolution.x) {
                 gl_FragColor = vec4(1.0);
             } else {
-                gl_FragColor = vec4( vec3(finalAo), 1.0);
+                gl_FragColor = vec4( vec3(finalAo), sceneTexel.a);
             }
         }
         #include <dithering_fragment>

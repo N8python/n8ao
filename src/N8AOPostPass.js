@@ -62,6 +62,7 @@ class N8AOPostPass extends Pass {
          * logarithmicDepthBuffer: Boolean
          * }
          */
+        this.autosetGamma = true;
         this.configuration = new Proxy({
             aoSamples: 16,
             aoRadius: 5.0,
@@ -71,7 +72,7 @@ class N8AOPostPass extends Pass {
             intensity: 5,
             denoiseIterations: 2.0,
             renderMode: 0,
-            gammaCorrection: false,
+            gammaCorrection: true,
             logarithmicDepthBuffer: false
         }, {
             set: (target, propName, value) => {
@@ -82,6 +83,9 @@ class N8AOPostPass extends Pass {
                 }
                 if (propName === 'denoiseSamples' && oldProp !== value) {
                     this.configureDenoisePass();
+                }
+                if (propName === 'gammaCorrection') {
+                    this.autosetGamma = false;
                 }
                 return true;
             }
@@ -316,7 +320,9 @@ class N8AOPostPass extends Pass {
             this.effectCompisterQuad.material.uniforms["blueNoise"].value = this.bluenoise;
             this.effectCompisterQuad.material.uniforms["intensity"].value = this.configuration.intensity;
             this.effectCompisterQuad.material.uniforms["renderMode"].value = this.configuration.renderMode;
-            this.effectCompisterQuad.material.uniforms["gammaCorrection"].value = this.configuration.gammaCorrection;
+            this.effectCompisterQuad.material.uniforms["gammaCorrection"].value = this.autosetGamma ?
+                this.renderToScreen :
+                this.configuration.gammaCorrection;
             this.effectCompisterQuad.material.uniforms["tDiffuse"].value = this.writeTargetInternal.texture;
             renderer.setRenderTarget(
                 this.renderToScreen ? null :

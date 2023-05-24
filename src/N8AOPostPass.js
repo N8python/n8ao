@@ -81,10 +81,10 @@ class N8AOPostPass extends Pass {
                 const oldProp = target[propName];
                 target[propName] = value;
                 if (propName === 'aoSamples' && oldProp !== value) {
-                    this.configureAOPass();
+                    this.configureAOPass(this.configuration.logarithmicDepthBuffer);
                 }
                 if (propName === 'denoiseSamples' && oldProp !== value) {
-                    this.configureDenoisePass();
+                    this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
                 }
                 if (propName === 'gammaCorrection') {
                     this.autosetGamma = false;
@@ -152,8 +152,8 @@ class N8AOPostPass extends Pass {
 
     }
     configureSampleDependentPasses() {
-        this.configureAOPass();
-        this.configureDenoisePass();
+        this.configureAOPass(this.configuration.logarithmicDepthBuffer);
+        this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
     }
     configureAOPass(logarithmicDepthBuffer = false) {
         this.samples = this.generateHemisphereSamples(this.configuration.aoSamples);

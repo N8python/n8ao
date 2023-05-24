@@ -96,8 +96,7 @@ uniform sampler2D bluenoise;
     varying vec2 vUv;
     highp float linearize_depth(highp float d, highp float zNear,highp float zFar)
     {
-        highp float z_n = 2.0 * d - 1.0;
-        return 2.0 * zNear * zFar / (zFar + zNear - z_n * (zFar - zNear));
+        return (zFar * zNear) / (zFar - d * (zFar - zNear));
     }
     highp float linearize_depth_ortho(highp float d, highp float nearZ, highp float farZ) {
       return nearZ + (farZ - nearZ) * d;
@@ -128,9 +127,9 @@ uniform sampler2D bluenoise;
       return wpos.xyz / wpos.w;
     }
     vec3 getWorldPos(float depth, vec2 coord) {
-      if (logDepth) {
+      #ifdef LOGDEPTH
         return getWorldPosLog(vec3(coord, depth));
-      }
+      #endif
       float z = depth * 2.0 - 1.0;
       vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
       vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
@@ -587,6 +586,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
          * intensity: number,
          * denoiseIterations: number,
          * renderMode: 0 | 1 | 2 | 3 | 4,
+         * color: THREE.Color,
          * gammaCorrection: Boolean,
          * logarithmicDepthBuffer: Boolean
          * }
@@ -607,8 +607,8 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
             set: (target, propName, value)=>{
                 const oldProp = target[propName];
                 target[propName] = value;
-                if (propName === "aoSamples" && oldProp !== value) this.configureAOPass();
-                if (propName === "denoiseSamples" && oldProp !== value) this.configureDenoisePass();
+                if (propName === "aoSamples" && oldProp !== value) this.configureAOPass(this.configuration.logarithmicDepthBuffer);
+                if (propName === "denoiseSamples" && oldProp !== value) this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
                 if (propName === "gammaCorrection") this.autosetGamma = false;
                 return true;
             }
@@ -662,8 +662,8 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         this._c = new $5Whe3$Color();
     }
     configureSampleDependentPasses() {
-        this.configureAOPass();
-        this.configureDenoisePass();
+        this.configureAOPass(this.configuration.logarithmicDepthBuffer);
+        this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
     }
     configureAOPass(logarithmicDepthBuffer = false) {
         this.samples = this.generateHemisphereSamples(this.configuration.aoSamples);
@@ -934,6 +934,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
          * intensity: number,
          * denoiseIterations: number,
          * renderMode: 0 | 1 | 2 | 3 | 4,
+         * color: THREE.Color,
          * gammaCorrection: Boolean,
          * logarithmicDepthBuffer: Boolean
          * }
@@ -953,8 +954,8 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             set: (target, propName, value)=>{
                 const oldProp = target[propName];
                 target[propName] = value;
-                if (propName === "aoSamples" && oldProp !== value) this.configureAOPass();
-                if (propName === "denoiseSamples" && oldProp !== value) this.configureDenoisePass();
+                if (propName === "aoSamples" && oldProp !== value) this.configureAOPass(this.configuration.logarithmicDepthBuffer);
+                if (propName === "denoiseSamples" && oldProp !== value) this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
                 return true;
             }
         });
@@ -991,8 +992,8 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         this._c = new $5Whe3$Color();
     }
     configureSampleDependentPasses() {
-        this.configureAOPass();
-        this.configureDenoisePass();
+        this.configureAOPass(this.configuration.logarithmicDepthBuffer);
+        this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
     }
     configureAOPass(logarithmicDepthBuffer = false) {
         this.samples = this.generateHemisphereSamples(this.configuration.aoSamples);

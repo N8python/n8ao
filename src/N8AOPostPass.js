@@ -241,6 +241,9 @@ class N8AOPostPass extends Pass {
         this.writeTargetInternal.setSize(width, height);
         this.readTargetInternal.setSize(width, height);
     }
+    setDepthTexture(depthTexture) {
+        this.depthTexture = depthTexture;
+    }
     render(renderer, inputBuffer, outputBuffer) {
             // Copy inputBuffer to outputBuffer
             //renderer.setRenderTarget(outputBuffer);
@@ -269,7 +272,7 @@ class N8AOPostPass extends Pass {
             }
             this.camera.updateMatrixWorld();
             this.effectShaderQuad.material.uniforms["sceneDiffuse"].value = inputBuffer.texture;
-            this.effectShaderQuad.material.uniforms["sceneDepth"].value = inputBuffer.depthTexture;
+            this.effectShaderQuad.material.uniforms["sceneDepth"].value = this.depthTexture;
             this.effectShaderQuad.material.uniforms["projMat"].value = this.camera.projectionMatrix;
             this.effectShaderQuad.material.uniforms["viewMat"].value = this.camera.matrixWorldInverse;
             this.effectShaderQuad.material.uniforms["projViewMat"].value = this.camera.projectionMatrix.clone().multiply(this.camera.matrixWorldInverse.clone());
@@ -296,7 +299,7 @@ class N8AOPostPass extends Pass {
             for (let i = 0; i < this.configuration.denoiseIterations; i++) {
                 [this.writeTargetInternal, this.readTargetInternal] = [this.readTargetInternal, this.writeTargetInternal];
                 this.poissonBlurQuad.material.uniforms["tDiffuse"].value = this.readTargetInternal.texture;
-                this.poissonBlurQuad.material.uniforms["sceneDepth"].value = inputBuffer.depthTexture;
+                this.poissonBlurQuad.material.uniforms["sceneDepth"].value = this.depthTexture;
                 this.poissonBlurQuad.material.uniforms["projMat"].value = this.camera.projectionMatrix;
                 this.poissonBlurQuad.material.uniforms["viewMat"].value = this.camera.matrixWorldInverse;
                 this.poissonBlurQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
@@ -320,7 +323,7 @@ class N8AOPostPass extends Pass {
             // End the blur
             // Start the composition
             this.effectCompisterQuad.material.uniforms["sceneDiffuse"].value = inputBuffer.texture;
-            this.effectCompisterQuad.material.uniforms["sceneDepth"].value = inputBuffer.depthTexture;
+            this.effectCompisterQuad.material.uniforms["sceneDepth"].value = this.depthTexture;
             this.effectCompisterQuad.material.uniforms["resolution"].value = this._r;
             this.effectCompisterQuad.material.uniforms["blueNoise"].value = this.bluenoise;
             this.effectCompisterQuad.material.uniforms["intensity"].value = this.configuration.intensity;

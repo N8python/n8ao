@@ -95,7 +95,7 @@ async function main() {
         clientWidth,
         clientHeight
     );
-    composer.addPass(n8aopass)
+    composer.addPass(n8aopass);
     composer.addPass(new EffectPass(camera, new SMAAEffect({
         preset: SMAAPreset.ULTRA
     })));

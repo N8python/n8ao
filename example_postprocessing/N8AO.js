@@ -204,7 +204,7 @@ void main() {
       float distanceFalloffToUse =screenSpaceRadius ?
           radiusToUse * distanceFalloff
       : distanceFalloff;
-      float bias = (near / 0.1) * fwidth(distance(worldPos, cameraPos)) / radiusToUse;
+      float bias = (0.1 / near) * fwidth(distance(worldPos, cameraPos)) / radiusToUse;
       for(float i = 0.0; i < FSAMPLES; i++) {
         vec3 sampleDirection = 
         tbn * 

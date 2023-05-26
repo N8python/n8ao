@@ -75,7 +75,8 @@ class N8AOPostPass extends Pass {
             renderMode: 0,
             color: new THREE.Color(0, 0, 0),
             gammaCorrection: true,
-            logarithmicDepthBuffer: false
+            logarithmicDepthBuffer: false,
+            screenSpaceRadius: false
         }, {
             set: (target, propName, value) => {
                 const oldProp = target[propName];
@@ -291,6 +292,7 @@ class N8AOPostPass extends Pass {
             this.effectShaderQuad.material.uniforms["far"].value = this.camera.far;
             this.effectShaderQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
             this.effectShaderQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
+            this.effectShaderQuad.material.uniforms["screenSpaceRadius"].value = this.configuration.screenSpaceRadius;
             // Start the AO
             renderer.setRenderTarget(this.writeTargetInternal);
             this.effectShaderQuad.render(renderer);
@@ -315,6 +317,7 @@ class N8AOPostPass extends Pass {
                 this.poissonBlurQuad.material.uniforms["near"].value = this.camera.near;
                 this.poissonBlurQuad.material.uniforms["far"].value = this.camera.far;
                 this.poissonBlurQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
+                this.poissonBlurQuad.material.uniforms["screenSpaceRadius"].value = this.configuration.screenSpaceRadius;
                 renderer.setRenderTarget(this.writeTargetInternal);
                 this.poissonBlurQuad.render(renderer);
 

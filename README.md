@@ -124,6 +124,12 @@ They are covered below:
 |:---:|:---:|:---:|
 | Color Black (Normal AO) | Color Blue (Appropriate) | Color Red (Too Bright) |
 
+# Screen Space Radius
+
+If you want the AO to calculate the radius based on screen space, you can do so by setting `configuration.screenSpaceRadius` to `true`. This is useful for scenes where the camera is moving across different scales a lot, or for scenes where the camera is very close to the objects.
+
+When `screenSpaceRadius` is set to `true`, the `aoRadius` parameter represents the size of the ambient occlusion effect in pixels (recommended to be set between 16 and 64). The `distanceFalloff` parameter becomes a ratio, representing the percent of the screen space radius at which the AO should fade away - it should be set to 0.2 in most cases, but it accepts any value between 0 and 1 (technically even higher than 1, though that is not recommended).
+
 # Performance
 
 `N8AOPass` comes with a wide variety of quality presets, and you can even manually edit the settings to your liking. You can switch between quality modes (the default is `Medium`) by doing:

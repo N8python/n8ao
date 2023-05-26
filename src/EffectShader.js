@@ -22,6 +22,7 @@ const EffectShader = {
         'far': { value: 1000.0 },
         'logDepth': { value: false },
         'ortho': { value: false },
+        'screenSpaceRadius': { value: false }
     },
 
     vertexShader: /* glsl */ `
@@ -52,6 +53,7 @@ uniform float near;
 uniform float far;
 uniform bool logDepth;
 uniform bool ortho;
+uniform bool screenSpaceRadius;
 uniform sampler2D bluenoise;
     varying vec2 vUv;
     highp float linearize_depth(highp float d, highp float zNear,highp float zFar)
@@ -134,7 +136,6 @@ void main() {
         return;
       }
       vec3 worldPos = getWorldPos(depth, vUv);
-      float bias = (near / 0.1) * fwidth(distance(worldPos, cameraPos)) / radius;
       vec3 normal = computeNormal(worldPos, vUv);
       vec4 noise = texture2D(bluenoise, vUv * (resolution / vec2(128.0)));
       vec3 randomVec = normalize(noise.rgb * 2.0 - 1.0);
@@ -143,13 +144,32 @@ void main() {
       mat3 tbn = mat3(tangent, bitangent, normal);
       float occluded = 0.0;
       float totalWeight = 0.0;
+     /* float radiusScreen = distance(
+        worldPos,
+        getWorldPos(depth, vUv + 
+          vec2(48.0, 0.0) / resolution)
+      );/*vUv.x < 0.5 ? radius : min(distance(
+        worldPos,
+        getWorldPos(depth, vUv + 
+          vec2(100.0, 0.0) / resolution)
+      ), radius);
+      float distanceFalloffScreen = radiusScreen * 0.2;*/
+      float radiusToUse = screenSpaceRadius ? distance(
+        worldPos,
+        getWorldPos(depth, vUv +
+          vec2(radius, 0.0) / resolution)
+      ) : radius;
+      float distanceFalloffToUse =screenSpaceRadius ?
+          radiusToUse * distanceFalloff
+      : distanceFalloff;
+      float bias = (near / 0.1) * fwidth(distance(worldPos, cameraPos)) / radiusToUse;
       for(float i = 0.0; i < FSAMPLES; i++) {
         vec3 sampleDirection = 
         tbn * 
         samples[int(i)];
         ;
         float moveAmt = samplesR[int(mod(i + noise.a * FSAMPLES, FSAMPLES))];
-        vec3 samplePos = worldPos + radius * moveAmt * sampleDirection;
+        vec3 samplePos = worldPos + radiusToUse * moveAmt * sampleDirection;
         vec4 offset = projViewMat * vec4(samplePos, 1.0);
         offset.xyz /= offset.w;
         offset.xyz = offset.xyz * 0.5 + 0.5;
@@ -162,7 +182,7 @@ void main() {
         float distSample = ortho ? linearize_depth_ortho(sampleDepth, near, far) : linearize_depth(sampleDepth, near, far);
         #endif
         float distWorld = ortho ? linearize_depth_ortho(offset.z, near, far) : linearize_depth(offset.z, near, far);
-        float rangeCheck = smoothstep(0.0, 1.0, distanceFalloff / (abs(distSample - distWorld)));
+        float rangeCheck = smoothstep(0.0, 1.0, distanceFalloffToUse / (abs(distSample - distWorld)));
         vec2 diff = gl_FragCoord.xy - ( offset.xy * resolution);
         float weight = dot(sampleDirection, normal);
           occluded += rangeCheck * weight * 

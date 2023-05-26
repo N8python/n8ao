@@ -62,6 +62,7 @@ async function main() {
         denoiseRadius: 12.0,
         aoRadius: 5.0,
         distanceFalloff: 1.0,
+        screenSpaceRadius: false,
         intensity: 5.0,
         color: [0, 0, 0],
         renderMode: "Combined"
@@ -70,8 +71,27 @@ async function main() {
     gui.add(effectController, "aoSamples", 1.0, 64.0, 1.0);
     gui.add(effectController, "denoiseSamples", 1.0, 64.0, 1.0);
     gui.add(effectController, "denoiseRadius", 0.0, 24.0, 0.01);
-    gui.add(effectController, "aoRadius", 1.0, 10.0, 0.01);
-    gui.add(effectController, "distanceFalloff", 0.0, 10.0, 0.01);
+    const aor = gui.add(effectController, "aoRadius", 1.0, 10.0, 0.01);
+    const df = gui.add(effectController, "distanceFalloff", 0.0, 10.0, 0.01);
+    gui.add(effectController, "screenSpaceRadius").onChange((value) => {
+        if (value) {
+            effectController.aoRadius = 48.0;
+            effectController.distanceFalloff = 0.2;
+            aor._min = 0;
+            aor._max = 64;
+            df._min = 0;
+            df._max = 1;
+        } else {
+            effectController.aoRadius = 5.0;
+            effectController.distanceFalloff = 1.0;
+            aor._min = 1;
+            aor._max = 10;
+            df._min = 0;
+            df._max = 10;
+        }
+        aor.updateDisplay();
+        df.updateDisplay();
+    });;
     gui.add(effectController, "intensity", 0.0, 10.0, 0.01);
     gui.addColor(effectController, "color");
     gui.add(effectController, "renderMode", ["Combined", "AO", "No AO", "Split", "Split AO"]);
@@ -110,6 +130,7 @@ async function main() {
         n8aopass.configuration.denoiseSamples = effectController.denoiseSamples;
         n8aopass.configuration.renderMode = ["Combined", "AO", "No AO", "Split", "Split AO"].indexOf(effectController.renderMode);
         n8aopass.configuration.color = new THREE.Color(effectController.color[0], effectController.color[1], effectController.color[2]);
+        n8aopass.configuration.screenSpaceRadius = effectController.screenSpaceRadius;
         composer.render();
         timerDOM.innerHTML = n8aopass.lastTime.toFixed(2);
         controls.update();

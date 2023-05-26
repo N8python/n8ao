@@ -63,6 +63,9 @@ const $1ed45968c1160c3c$export$c9b263b9a17dffd7 = {
         },
         "ortho": {
             value: false
+        },
+        "screenSpaceRadius": {
+            value: false
         }
     },
     vertexShader: /* glsl */ `
@@ -92,6 +95,7 @@ uniform float near;
 uniform float far;
 uniform bool logDepth;
 uniform bool ortho;
+uniform bool screenSpaceRadius;
 uniform sampler2D bluenoise;
     varying vec2 vUv;
     highp float linearize_depth(highp float d, highp float zNear,highp float zFar)
@@ -174,7 +178,6 @@ void main() {
         return;
       }
       vec3 worldPos = getWorldPos(depth, vUv);
-      float bias = (near / 0.1) * fwidth(distance(worldPos, cameraPos)) / radius;
       vec3 normal = computeNormal(worldPos, vUv);
       vec4 noise = texture2D(bluenoise, vUv * (resolution / vec2(128.0)));
       vec3 randomVec = normalize(noise.rgb * 2.0 - 1.0);
@@ -183,13 +186,32 @@ void main() {
       mat3 tbn = mat3(tangent, bitangent, normal);
       float occluded = 0.0;
       float totalWeight = 0.0;
+     /* float radiusScreen = distance(
+        worldPos,
+        getWorldPos(depth, vUv + 
+          vec2(48.0, 0.0) / resolution)
+      );/*vUv.x < 0.5 ? radius : min(distance(
+        worldPos,
+        getWorldPos(depth, vUv + 
+          vec2(100.0, 0.0) / resolution)
+      ), radius);
+      float distanceFalloffScreen = radiusScreen * 0.2;*/
+      float radiusToUse = screenSpaceRadius ? distance(
+        worldPos,
+        getWorldPos(depth, vUv +
+          vec2(radius, 0.0) / resolution)
+      ) : radius;
+      float distanceFalloffToUse =screenSpaceRadius ?
+          radiusToUse * distanceFalloff
+      : distanceFalloff;
+      float bias = (near / 0.1) * fwidth(distance(worldPos, cameraPos)) / radiusToUse;
       for(float i = 0.0; i < FSAMPLES; i++) {
         vec3 sampleDirection = 
         tbn * 
         samples[int(i)];
         ;
         float moveAmt = samplesR[int(mod(i + noise.a * FSAMPLES, FSAMPLES))];
-        vec3 samplePos = worldPos + radius * moveAmt * sampleDirection;
+        vec3 samplePos = worldPos + radiusToUse * moveAmt * sampleDirection;
         vec4 offset = projViewMat * vec4(samplePos, 1.0);
         offset.xyz /= offset.w;
         offset.xyz = offset.xyz * 0.5 + 0.5;
@@ -202,7 +224,7 @@ void main() {
         float distSample = ortho ? linearize_depth_ortho(sampleDepth, near, far) : linearize_depth(sampleDepth, near, far);
         #endif
         float distWorld = ortho ? linearize_depth_ortho(offset.z, near, far) : linearize_depth(offset.z, near, far);
-        float rangeCheck = smoothstep(0.0, 1.0, distanceFalloff / (abs(distSample - distWorld)));
+        float rangeCheck = smoothstep(0.0, 1.0, distanceFalloffToUse / (abs(distSample - distWorld)));
         vec2 diff = gl_FragCoord.xy - ( offset.xy * resolution);
         float weight = dot(sampleDirection, normal);
           occluded += rangeCheck * weight * 
@@ -373,6 +395,9 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
         "radius": {
             value: 12.0
         },
+        "worldRadius": {
+            value: 5.0
+        },
         "index": {
             value: 0.0
         },
@@ -389,6 +414,9 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
             value: 1000.0
         },
         "logDepth": {
+            value: false
+        },
+        "screenSpaceRadius": {
             value: false
         }
     },
@@ -408,11 +436,13 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
     uniform vec2 resolution;
     uniform float r;
     uniform float radius;
+     uniform float worldRadius;
     uniform float index;
      uniform float near;
      uniform float far;
      uniform float distanceFalloff;
      uniform bool logDepth;
+     uniform bool screenSpaceRadius;
     varying vec2 vUv;
 
     highp float linearize_depth(highp float d, highp float zNear,highp float zFar)
@@ -458,37 +488,9 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
     }
     #include <common>
     #define NUM_SAMPLES 16
-  //  #define NUM_RINGS 11
     uniform vec2 poissonDisk[NUM_SAMPLES];
-				/*void initPoissonSamples( ) {
-					float ANGLE_STEP = PI2 * float( NUM_RINGS ) / float( NUM_SAMPLES );
-					float INV_NUM_SAMPLES = 1.0 / float( NUM_SAMPLES );
-
-					// jsfiddle that shows sample pattern: https://jsfiddle.net/a16ff1p7/
-					//float angle = texture2D(blueNoise, vUv * (resolution / vec2(1024.0))).x * PI2;
-                    float angle;
-                    if (index == 0.0) {
-                         angle = texture2D(blueNoise, vUv * (resolution / vec2(1024.0))).x * PI2;
-                    } else if (index == 1.0) {
-                         angle = texture2D(blueNoise, vUv * (resolution / vec2(1024.0))).y * PI2;
-                    } else if (index == 2.0) {
-                         angle = texture2D(blueNoise, vUv * (resolution / vec2(1024.0))).z * PI2;
-                    } else {
-                         angle = texture2D(blueNoise, vUv * (resolution / vec2(1024.0))).w * PI2;
-                    }
-					float radius = INV_NUM_SAMPLES;
-					float radiusStep = radius;
-
-					for( int i = 0; i < NUM_SAMPLES; i ++ ) {
-						poissonDisk[i] = vec2( cos( angle ), sin( angle ) ) * pow( radius, 0.75 );
-						radius += radiusStep;
-						angle += ANGLE_STEP;
-					}
-				}*/
     void main() {
         const float pi = 3.14159;
-        //vec3 texel = texture2D(tDiffuse, vUv).rgb;
-       // initPoissonSamples();
         vec2 texelSize = vec2(1.0 / resolution.x, 1.0 / resolution.y);
         vec2 uv = vUv;
         vec4 data = texture2D(tDiffuse, vUv);
@@ -511,7 +513,16 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
         }
 
         mat2 rotationMatrix = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
-        
+        float radiusToUse = screenSpaceRadius ? distance(
+          worldPos,
+          getWorldPos(d, vUv +
+            vec2(worldRadius, 0.0) / resolution)
+        ) : worldRadius;
+        float distanceFalloffToUse =screenSpaceRadius ?
+            radiusToUse * distanceFalloff
+        : distanceFalloff;
+
+
         for(int i = 0; i < NUM_SAMPLES; i++) {
             vec2 offset = (rotationMatrix * poissonDisk[i]) * texelSize * size;
             vec4 dataSample = texture2D(tDiffuse, uv + offset);
@@ -520,7 +531,7 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
             float dSample = texture2D(sceneDepth, uv + offset).x;
             vec3 worldPosSample = getWorldPos(dSample, uv + offset);
             float tangentPlaneDist = abs(dot(worldPos - worldPosSample, normal));
-            float rangeCheck = exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloff)) * max(dot(normal, normalSample), 0.0) * (1.0 - abs(occSample - baseOcc));
+            float rangeCheck = exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0) * (1.0 - abs(occSample - baseOcc));
             occlusion += occSample * rangeCheck;
             count += rangeCheck;
         }
@@ -602,7 +613,8 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
             renderMode: 0,
             color: new $5Whe3$Color(0, 0, 0),
             gammaCorrection: true,
-            logarithmicDepthBuffer: false
+            logarithmicDepthBuffer: false,
+            screenSpaceRadius: false
         }, {
             set: (target, propName, value)=>{
                 const oldProp = target[propName];
@@ -790,6 +802,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         this.effectShaderQuad.material.uniforms["far"].value = this.camera.far;
         this.effectShaderQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
         this.effectShaderQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
+        this.effectShaderQuad.material.uniforms["screenSpaceRadius"].value = this.configuration.screenSpaceRadius;
         // Start the AO
         renderer.setRenderTarget(this.writeTargetInternal);
         this.effectShaderQuad.render(renderer);
@@ -817,6 +830,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
             this.poissonBlurQuad.material.uniforms["near"].value = this.camera.near;
             this.poissonBlurQuad.material.uniforms["far"].value = this.camera.far;
             this.poissonBlurQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
+            this.poissonBlurQuad.material.uniforms["screenSpaceRadius"].value = this.configuration.screenSpaceRadius;
             renderer.setRenderTarget(this.writeTargetInternal);
             this.poissonBlurQuad.render(renderer);
         }
@@ -952,7 +966,8 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             renderMode: 0,
             color: new $5Whe3$Color(0, 0, 0),
             gammaCorrection: true,
-            logarithmicDepthBuffer: false
+            logarithmicDepthBuffer: false,
+            screenSpaceRadius: false
         }, {
             set: (target, propName, value)=>{
                 const oldProp = target[propName];
@@ -1119,6 +1134,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         this.effectShaderQuad.material.uniforms["far"].value = this.camera.far;
         this.effectShaderQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
         this.effectShaderQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
+        this.effectShaderQuad.material.uniforms["screenSpaceRadius"].value = this.configuration.screenSpaceRadius;
         // Start the AO
         renderer.setRenderTarget(this.writeTargetInternal);
         this.effectShaderQuad.render(renderer);
@@ -1146,6 +1162,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             this.poissonBlurQuad.material.uniforms["near"].value = this.camera.near;
             this.poissonBlurQuad.material.uniforms["far"].value = this.camera.far;
             this.poissonBlurQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
+            this.poissonBlurQuad.material.uniforms["screenSpaceRadius"].value = this.configuration.screenSpaceRadius;
             renderer.setRenderTarget(this.writeTargetInternal);
             this.poissonBlurQuad.render(renderer);
         }

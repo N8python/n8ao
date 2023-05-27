@@ -192,7 +192,9 @@ void main() {
             diff,
             diff
              
-            ) < 1.0 || (sampleDepth == depth) ? 0.0 : 1.0)
+            ) < 1.0 || (sampleDepth == depth) || (
+              offset.x < 0.0 || offset.x > 1.0 || offset.y < 0.0 || offset.y > 1.0
+            ) ? 0.0 : 1.0)
           );
           totalWeight += weight;
       }

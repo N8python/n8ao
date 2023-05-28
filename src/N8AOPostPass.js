@@ -246,6 +246,9 @@ class N8AOPostPass extends Pass {
         this.depthTexture = depthTexture;
     }
     render(renderer, inputBuffer, outputBuffer) {
+            const xrEnabled = renderer.xr.enabled;
+            renderer.xr.enabled = false;
+
             // Copy inputBuffer to outputBuffer
             //renderer.setRenderTarget(outputBuffer);
             //  this.copyQuad.material.uniforms.tDiffuse.value = inputBuffer.texture;
@@ -348,6 +351,8 @@ class N8AOPostPass extends Pass {
                 gl.endQuery(ext.TIME_ELAPSED_EXT);
                 checkTimerQuery(timerQuery, gl, this);
             }
+
+            renderer.xr.enabled = xrEnabled;
         }
         /**
          * Enables the debug mode of the AO, meaning the lastTime value will be updated.

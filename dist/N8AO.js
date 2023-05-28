@@ -1,7 +1,50 @@
-import {Color as $5Whe3$Color, ShaderMaterial as $5Whe3$ShaderMaterial, WebGLRenderTarget as $5Whe3$WebGLRenderTarget, LinearFilter as $5Whe3$LinearFilter, NearestFilter as $5Whe3$NearestFilter, DepthTexture as $5Whe3$DepthTexture, UnsignedIntType as $5Whe3$UnsignedIntType, DepthFormat as $5Whe3$DepthFormat, DataTexture as $5Whe3$DataTexture, NoColorSpace as $5Whe3$NoColorSpace, RepeatWrapping as $5Whe3$RepeatWrapping, Vector2 as $5Whe3$Vector2, Vector3 as $5Whe3$Vector3, Matrix4 as $5Whe3$Matrix4} from "three";
-import {FullScreenQuad as $5Whe3$FullScreenQuad, Pass as $5Whe3$Pass} from "three/examples/jsm/postprocessing/Pass.js";
+import {Color as $5Whe3$Color, ShaderMaterial as $5Whe3$ShaderMaterial, WebGLRenderTarget as $5Whe3$WebGLRenderTarget, LinearFilter as $5Whe3$LinearFilter, NearestFilter as $5Whe3$NearestFilter, DepthTexture as $5Whe3$DepthTexture, UnsignedIntType as $5Whe3$UnsignedIntType, DepthFormat as $5Whe3$DepthFormat, DataTexture as $5Whe3$DataTexture, NoColorSpace as $5Whe3$NoColorSpace, RepeatWrapping as $5Whe3$RepeatWrapping, Vector2 as $5Whe3$Vector2, Vector3 as $5Whe3$Vector3, BufferGeometry as $5Whe3$BufferGeometry, BufferAttribute as $5Whe3$BufferAttribute, Sphere as $5Whe3$Sphere, OrthographicCamera as $5Whe3$OrthographicCamera, Mesh as $5Whe3$Mesh, Matrix4 as $5Whe3$Matrix4} from "three";
+import {Pass as $5Whe3$Pass} from "three/examples/jsm/postprocessing/Pass.js";
 import {Pass as $5Whe3$Pass1} from "postprocessing";
 
+
+
+
+const $e4ca8dcb0218f846$var$_geometry = new $5Whe3$BufferGeometry();
+$e4ca8dcb0218f846$var$_geometry.setAttribute("position", new $5Whe3$BufferAttribute(new Float32Array([
+    -1,
+    -1,
+    3,
+    -1,
+    -1,
+    3
+]), 2));
+$e4ca8dcb0218f846$var$_geometry.setAttribute("uv", new $5Whe3$BufferAttribute(new Float32Array([
+    0,
+    0,
+    2,
+    0,
+    0,
+    2
+]), 2));
+// Recent three.js versions break setDrawRange or itemSize <3 position
+$e4ca8dcb0218f846$var$_geometry.boundingSphere = new $5Whe3$Sphere();
+$e4ca8dcb0218f846$var$_geometry.computeBoundingSphere = function() {};
+const $e4ca8dcb0218f846$var$_camera = new $5Whe3$OrthographicCamera();
+class $e4ca8dcb0218f846$export$dcd670d73db751f5 {
+    constructor(material){
+        this._mesh = new $5Whe3$Mesh($e4ca8dcb0218f846$var$_geometry, material);
+        this._mesh.frustumCulled = false;
+    }
+    render(renderer) {
+        renderer.render(this._mesh, $e4ca8dcb0218f846$var$_camera);
+    }
+    get material() {
+        return this._mesh.material;
+    }
+    set material(value) {
+        this._mesh.material = value;
+    }
+    dispose() {
+        this._mesh.material.dispose();
+        this._mesh.geometry.dispose();
+    }
+}
 
 
 
@@ -72,7 +115,7 @@ const $1ed45968c1160c3c$export$c9b263b9a17dffd7 = {
 varying vec2 vUv;
 void main() {
   vUv = uv;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+  gl_Position = vec4(position, 1);
 }`,
     fragmentShader: /* glsl */ `
     #define SAMPLES 16
@@ -299,7 +342,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
 		varying vec2 vUv;
 		void main() {
 			vUv = uv;
-			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+			gl_Position = vec4(position, 1);
 		}`,
     fragmentShader: /* glsl */ `
 		uniform sampler2D sceneDiffuse;
@@ -426,7 +469,7 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
 		varying vec2 vUv;
 		void main() {
 			vUv = uv;
-			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+			gl_Position = vec4(position, 1.0);
 		}`,
     fragmentShader: /* glsl */ `
 		uniform sampler2D sceneDiffuse;
@@ -631,8 +674,8 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         /** @type {number[]} */ this.samplesR = [];
         /** @type {THREE.Vector2[]} */ this.samplesDenoise = [];
         this.configureSampleDependentPasses();
-        this.effectCompisterQuad = new (0, $5Whe3$FullScreenQuad)(new $5Whe3$ShaderMaterial((0, $12b21d24d1192a04$export$a815acccbd2c9a49)));
-        this.copyQuad = new (0, $5Whe3$FullScreenQuad)(new $5Whe3$ShaderMaterial({
+        this.effectCompisterQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial((0, $12b21d24d1192a04$export$a815acccbd2c9a49)));
+        this.copyQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial({
             uniforms: {
                 tDiffuse: {
                     value: null
@@ -642,7 +685,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
             varying vec2 vUv;
             void main() {
                 vUv = uv;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+                gl_Position = vec4(position, 1);
             }
             `,
             fragmentShader: `
@@ -690,7 +733,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         if (this.effectShaderQuad) {
             this.effectShaderQuad.material.dispose();
             this.effectShaderQuad.material = new $5Whe3$ShaderMaterial(e);
-        } else this.effectShaderQuad = new (0, $5Whe3$FullScreenQuad)(new $5Whe3$ShaderMaterial(e));
+        } else this.effectShaderQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(e));
     }
     configureDenoisePass(logarithmicDepthBuffer = false) {
         this.samplesDenoise = this.generateDenoiseSamples(this.configuration.denoiseSamples, 11);
@@ -702,7 +745,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         if (this.poissonBlurQuad) {
             this.poissonBlurQuad.material.dispose();
             this.poissonBlurQuad.material = new $5Whe3$ShaderMaterial(p);
-        } else this.poissonBlurQuad = new (0, $5Whe3$FullScreenQuad)(new $5Whe3$ShaderMaterial(p));
+        } else this.poissonBlurQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(p));
     }
     /**
          * 
@@ -759,6 +802,8 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         this.depthTexture = depthTexture;
     }
     render(renderer, inputBuffer, outputBuffer) {
+        const xrEnabled = renderer.xr.enabled;
+        renderer.xr.enabled = false;
         // Copy inputBuffer to outputBuffer
         //renderer.setRenderTarget(outputBuffer);
         //  this.copyQuad.material.uniforms.tDiffuse.value = inputBuffer.texture;
@@ -854,6 +899,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
             gl.endQuery(ext.TIME_ELAPSED_EXT);
             $87431ee93b037844$var$checkTimerQuery(timerQuery, gl, this);
         }
+        renderer.xr.enabled = xrEnabled;
     }
     /**
          * Enables the debug mode of the AO, meaning the lastTime value will be updated.
@@ -983,7 +1029,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         /** @type {number[]} */ this.samplesR = [];
         /** @type {THREE.Vector2[]} */ this.samplesDenoise = [];
         this.configureSampleDependentPasses();
-        this.effectCompisterQuad = new (0, $5Whe3$FullScreenQuad)(new $5Whe3$ShaderMaterial((0, $12b21d24d1192a04$export$a815acccbd2c9a49)));
+        this.effectCompisterQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial((0, $12b21d24d1192a04$export$a815acccbd2c9a49)));
         this.beautyRenderTarget = new $5Whe3$WebGLRenderTarget(this.width, this.height, {
             minFilter: $5Whe3$LinearFilter,
             magFilter: $5Whe3$NearestFilter
@@ -1026,7 +1072,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         if (this.effectShaderQuad) {
             this.effectShaderQuad.material.dispose();
             this.effectShaderQuad.material = new $5Whe3$ShaderMaterial(e);
-        } else this.effectShaderQuad = new (0, $5Whe3$FullScreenQuad)(new $5Whe3$ShaderMaterial(e));
+        } else this.effectShaderQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(e));
     }
     configureDenoisePass(logarithmicDepthBuffer = false) {
         this.samplesDenoise = this.generateDenoiseSamples(this.configuration.denoiseSamples, 11);
@@ -1038,7 +1084,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         if (this.poissonBlurQuad) {
             this.poissonBlurQuad.material.dispose();
             this.poissonBlurQuad.material = new $5Whe3$ShaderMaterial(p);
-        } else this.poissonBlurQuad = new (0, $5Whe3$FullScreenQuad)(new $5Whe3$ShaderMaterial(p));
+        } else this.poissonBlurQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(p));
     }
     /**
          * 
@@ -1115,6 +1161,8 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         }
         renderer.setRenderTarget(this.beautyRenderTarget);
         renderer.render(this.scene, this.camera);
+        const xrEnabled = renderer.xr.enabled;
+        renderer.xr.enabled = false;
         this.camera.updateMatrixWorld();
         this.effectShaderQuad.material.uniforms["sceneDiffuse"].value = this.beautyRenderTarget.texture;
         this.effectShaderQuad.material.uniforms["sceneDepth"].value = this.beautyRenderTarget.depthTexture;
@@ -1186,6 +1234,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             gl.endQuery(ext.TIME_ELAPSED_EXT);
             $05f6997e4b65da14$var$checkTimerQuery(timerQuery, gl, this);
         }
+        renderer.xr.enabled = xrEnabled;
     }
     /**
          * Enables the debug mode of the AO, meaning the lastTime value will be updated.

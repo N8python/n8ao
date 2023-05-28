@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { Pass, FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
+import { Pass } from "three/examples/jsm/postprocessing/Pass.js";
+import { FullScreenTriangle } from './FullScreenTriangle.js';
 import { EffectShader } from './EffectShader.js';
 import { EffectCompositer } from './EffectCompositer.js';
 import { PoissionBlur } from './PoissionBlur.js';
@@ -96,7 +97,7 @@ class N8AOPass extends Pass {
         /** @type {THREE.Vector2[]} */
         this.samplesDenoise = [];
         this.configureSampleDependentPasses();
-        this.effectCompisterQuad = new FullScreenQuad(new THREE.ShaderMaterial(EffectCompositer));
+        this.effectCompisterQuad = new FullScreenTriangle(new THREE.ShaderMaterial(EffectCompositer));
         this.beautyRenderTarget = new THREE.WebGLRenderTarget(this.width, this.height, {
             minFilter: THREE.LinearFilter,
             magFilter: THREE.NearestFilter
@@ -149,7 +150,7 @@ class N8AOPass extends Pass {
             this.effectShaderQuad.material.dispose();
             this.effectShaderQuad.material = new THREE.ShaderMaterial(e);
         } else {
-            this.effectShaderQuad = new FullScreenQuad(new THREE.ShaderMaterial(e));
+            this.effectShaderQuad = new FullScreenTriangle(new THREE.ShaderMaterial(e));
         }
     }
     configureDenoisePass(logarithmicDepthBuffer = false) {
@@ -163,7 +164,7 @@ class N8AOPass extends Pass {
                 this.poissonBlurQuad.material.dispose();
                 this.poissonBlurQuad.material = new THREE.ShaderMaterial(p);
             } else {
-                this.poissonBlurQuad = new FullScreenQuad(new THREE.ShaderMaterial(p));
+                this.poissonBlurQuad = new FullScreenTriangle(new THREE.ShaderMaterial(p));
             }
         }
         /**
@@ -248,6 +249,9 @@ class N8AOPass extends Pass {
             renderer.setRenderTarget(this.beautyRenderTarget);
             renderer.render(this.scene, this.camera);
 
+            const xrEnabled = renderer.xr.enabled;
+            renderer.xr.enabled = false;
+
             this.camera.updateMatrixWorld();
             this.effectShaderQuad.material.uniforms["sceneDiffuse"].value = this.beautyRenderTarget.texture;
             this.effectShaderQuad.material.uniforms["sceneDepth"].value = this.beautyRenderTarget.depthTexture;
@@ -322,6 +326,8 @@ class N8AOPass extends Pass {
                 gl.endQuery(ext.TIME_ELAPSED_EXT);
                 checkTimerQuery(timerQuery, gl, this);
             }
+
+            renderer.xr.enabled = xrEnabled;
         }
         /**
          * Enables the debug mode of the AO, meaning the lastTime value will be updated.

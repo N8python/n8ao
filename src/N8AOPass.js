@@ -249,6 +249,9 @@ class N8AOPass extends Pass {
             renderer.setRenderTarget(this.beautyRenderTarget);
             renderer.render(this.scene, this.camera);
 
+            const xrEnabled = renderer.xr.enabled;
+            renderer.xr.enabled = false;
+
             this.camera.updateMatrixWorld();
             this.effectShaderQuad.material.uniforms["sceneDiffuse"].value = this.beautyRenderTarget.texture;
             this.effectShaderQuad.material.uniforms["sceneDepth"].value = this.beautyRenderTarget.depthTexture;
@@ -323,6 +326,8 @@ class N8AOPass extends Pass {
                 gl.endQuery(ext.TIME_ELAPSED_EXT);
                 checkTimerQuery(timerQuery, gl, this);
             }
+
+            renderer.xr.enabled = xrEnabled;
         }
         /**
          * Enables the debug mode of the AO, meaning the lastTime value will be updated.

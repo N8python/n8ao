@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
 import { Pass } from "postprocessing";
+import { FullScreenTriangle } from "./FullScreenTriangle.js";
 import { EffectShader } from './EffectShader.js';
 import { EffectCompositer } from './EffectCompositer.js';
 import { PoissionBlur } from './PoissionBlur.js';
@@ -100,8 +100,8 @@ class N8AOPostPass extends Pass {
         /** @type {THREE.Vector2[]} */
         this.samplesDenoise = [];
         this.configureSampleDependentPasses();
-        this.effectCompisterQuad = new FullScreenQuad(new THREE.ShaderMaterial(EffectCompositer));
-        this.copyQuad = new FullScreenQuad(new THREE.ShaderMaterial({
+        this.effectCompisterQuad = new FullScreenTriangle(new THREE.ShaderMaterial(EffectCompositer));
+        this.copyQuad = new FullScreenTriangle(new THREE.ShaderMaterial({
             uniforms: {
                 tDiffuse: {
                     value: null
@@ -111,7 +111,7 @@ class N8AOPostPass extends Pass {
             varying vec2 vUv;
             void main() {
                 vUv = uv;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+                gl_Position = vec4(position, 1);
             }
             `,
             fragmentShader: `
@@ -168,7 +168,7 @@ class N8AOPostPass extends Pass {
             this.effectShaderQuad.material.dispose();
             this.effectShaderQuad.material = new THREE.ShaderMaterial(e);
         } else {
-            this.effectShaderQuad = new FullScreenQuad(new THREE.ShaderMaterial(e));
+            this.effectShaderQuad = new FullScreenTriangle(new THREE.ShaderMaterial(e));
         }
     }
     configureDenoisePass(logarithmicDepthBuffer = false) {
@@ -182,7 +182,7 @@ class N8AOPostPass extends Pass {
                 this.poissonBlurQuad.material.dispose();
                 this.poissonBlurQuad.material = new THREE.ShaderMaterial(p);
             } else {
-                this.poissonBlurQuad = new FullScreenQuad(new THREE.ShaderMaterial(p));
+                this.poissonBlurQuad = new FullScreenTriangle(new THREE.ShaderMaterial(p));
             }
         }
         /**

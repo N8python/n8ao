@@ -85,7 +85,8 @@ composer.addPass(new EffectPass(camera, new SMAAEffect({
 ```
 N8AOPostPass's API is identical to that of N8AOPass (so all docs below apply), except it is compatible with pmndrs/postprocessing. 
 
-Small note: N8AOPostPass's `configuration.gammaCorrection` is set to `false` by default, as postprocessing handles gamma correction for you.
+Small note: N8AOPostPass's `configuration.gammaCorrection` is automatically set to the correct value based on its position in your postprocessing pipeline. If it is the last pass, it is set to true. Otherwise, it is set to false. This is to ensure that gamma correction is only applied once. However, sometimes this automatic detection fails, so if you are getting washed out colors, try setting `configuration.gammaCorrection` to false, and if you are getting dark colors, try setting it to true.
+
 
 # Usage (Detailed)
 
@@ -131,8 +132,17 @@ If you want the AO to calculate the radius based on screen space, you can do so 
 When `screenSpaceRadius` is set to `true`, the `aoRadius` parameter represents the size of the ambient occlusion effect in pixels (recommended to be set between 16 and 64). The `distanceFalloff` parameter becomes a ratio, representing the percent of the screen space radius at which the AO should fade away - it should be set to 0.2 in most cases, but it accepts any value between 0 and 1 (technically even higher than 1, though that is not recommended).
 
 # Performance
+`N8AOPass` has a "half-resolution" mode for performance-critical applications. Enabling it is as simple as doing:
 
-`N8AOPass` comes with a wide variety of quality presets, and you can even manually edit the settings to your liking. You can switch between quality modes (the default is `Medium`) by doing:
+```js
+n8aopass.configuration.halfRes = true;
+```
+
+This will cause the AO to be calculated at half the resolution of the screen, and then upscaled to the full resolution. This is a great way to get a performance boost (generally 2x-4x) at the cost of some quality (the AO will lack fine details and temporal stability will be slightly reduced).
+
+The half-resolution mode uses depth-aware upscaling by default, and this generally incurs a fixed cost of around 1ms. The AO effect looks horrible without depth-aware upscaling, so it is not recommended to disable it. However, if performance is truly that critical, you can do so by setting `configuration.depthAwareUpsampling` to `false`.
+
+On top of half-resolution mode,`N8AOPass` comes with a wide variety of quality presets (which can be used with or without half-resolution mode), and you can even manually edit the settings to your liking. You can switch between quality modes (the default is `Medium`) by doing:
 
 ```js
 n8ao.setQualityMode("Low"); // Or any other quality mode
@@ -148,6 +158,8 @@ The quality modes are as follows:
 | Medium (Temporally stable and barely any noise) | 16 | 8 | 12 | High-End Mobile, laptops, desktops |
 | High (Significantly sharper AO, barely any noise) | 64 | 8 | 6 | Desktops, dedicated GPUs  |
 | Ultra (Sharp AO, No visible noise whatsoever) | 64 | 16 | 6 | Desktops, dedicated GPUs|
+
+Generally, half-res mode at "Ultra" quality is slightly slower than full-res mode at "Performance" quality, but produces significantly better results.
 
 If you wish to make entirely custom quality setup, you can manually change `aoSamples`, `denoiseSamples` and the `denoiseRadius` in the `configuration` object.
 

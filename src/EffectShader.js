@@ -5,6 +5,7 @@ const EffectShader = {
 
         'sceneDiffuse': { value: null },
         'sceneDepth': { value: null },
+        'sceneNormal': { value: null },
         'projMat': { value: new THREE.Matrix4() },
         'viewMat': { value: new THREE.Matrix4() },
         'projViewMat': { value: new THREE.Matrix4() },
@@ -36,6 +37,7 @@ void main() {
     #define SAMPLES 16
     #define FSAMPLES 16.0
 uniform sampler2D sceneDiffuse;
+uniform sampler2D sceneNormal;
 uniform highp sampler2D sceneDepth;
 uniform mat4 projectionMatrixInv;
 uniform mat4 viewMatrixInv;
@@ -136,8 +138,13 @@ void main() {
         return;
       }
       vec3 worldPos = getWorldPos(depth, vUv);
-      vec3 normal = computeNormal(worldPos, vUv);
-      vec4 noise = texture2D(bluenoise, vUv * (resolution / vec2(128.0)));
+    //  vec3 normal = texture2D(sceneNormal, vUv).rgb;//computeNormal(worldPos, vUv);
+      #ifdef HALFRES
+        vec3 normal = texture2D(sceneNormal, vUv).rgb;
+      #else
+        vec3 normal = computeNormal(worldPos, vUv);
+      #endif
+      vec4 noise = texture2D(bluenoise, gl_FragCoord.xy / 128.0);
       vec3 randomVec = normalize(noise.rgb * 2.0 - 1.0);
       vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
       vec3 bitangent = cross(normal, tangent);

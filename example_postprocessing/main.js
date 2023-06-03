@@ -64,6 +64,8 @@ async function main() {
         aoRadius: 5.0,
         distanceFalloff: 1.0,
         screenSpaceRadius: false,
+        halfRes: false,
+        depthAwareUpsampling: true,
         intensity: 5.0,
         renderMode: "Combined",
         color: [0, 0, 0]
@@ -93,6 +95,8 @@ async function main() {
         aor.updateDisplay();
         df.updateDisplay();
     });
+    gui.add(effectController, "halfRes");
+    gui.add(effectController, "depthAwareUpsampling");
     gui.add(effectController, "intensity", 0.0, 10.0, 0.01);
     gui.addColor(effectController, "color");
     gui.add(effectController, "renderMode", ["Combined", "AO", "No AO", "Split", "Split AO"]);
@@ -145,6 +149,8 @@ async function main() {
         n8aopass.configuration.renderMode = ["Combined", "AO", "No AO", "Split", "Split AO"].indexOf(effectController.renderMode);
         n8aopass.configuration.color = new THREE.Color(effectController.color[0], effectController.color[1], effectController.color[2]);
         n8aopass.configuration.screenSpaceRadius = effectController.screenSpaceRadius;
+        n8aopass.configuration.halfRes = effectController.halfRes;
+        n8aopass.configuration.depthAwareUpsampling = effectController.depthAwareUpsampling;
         composer.render();
         timerDOM.innerHTML = n8aopass.lastTime.toFixed(2);
         controls.update();

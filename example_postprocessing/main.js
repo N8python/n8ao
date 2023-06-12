@@ -20,7 +20,6 @@ async function main() {
     document.body.appendChild(renderer.domElement);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.VSMShadowMap;
-    //renderer.outputColorSpace = THREE.LinearColorSpace;
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 25, 0);
     const stats = new Stats();

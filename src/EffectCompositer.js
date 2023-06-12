@@ -25,6 +25,12 @@ const EffectCompositer = {
         "screenSpaceRadius": { value: false },
         "radius": { value: 0.0 },
         "distanceFalloff": { value: 1.0 },
+        'fog': { value: false },
+        'fogExp': { value: false },
+        'fogDensity': { value: 0.0 },
+        'fogNear': { value: Infinity },
+        'fogFar': { value: Infinity }
+
     },
     vertexShader: /* glsl */ `
 		varying vec2 vUv;
@@ -50,8 +56,14 @@ const EffectCompositer = {
     uniform bool logDepth;
     uniform bool ortho;
     uniform bool screenSpaceRadius;
+    uniform bool fog;
+    uniform bool fogExp;
+    uniform float fogDensity;
+    uniform float fogNear;
+    uniform float fogFar;
     uniform float radius;
     uniform float distanceFalloff;
+    uniform vec3 cameraPos;
     varying vec2 vUv;
     highp float linearize_depth(highp float d, highp float zNear,highp float zFar)
     {
@@ -131,12 +143,11 @@ const EffectCompositer = {
     void main() {
         //vec4 texel = texture2D(tDiffuse, vUv);//vec3(0.0);
         vec4 sceneTexel = texture2D(sceneDiffuse, vUv);
-
-        #ifdef HALFRES 
         float depth = texture2D(
             sceneDepth,
             vUv
         ).x;
+        #ifdef HALFRES 
         vec4 texel;
         if (depth == 1.0) {
             texel = vec4(0.0, 0.0, 0.0, 1.0);
@@ -184,6 +195,19 @@ const EffectCompositer = {
 
      
         float finalAo = pow(texel.a, intensity);
+        float fogFactor;
+        float fogDepth = distance(
+            cameraPos,
+            getWorldPos(depth, vUv)
+        );
+        if (fog) {
+            if (fogExp) {
+                fogFactor = 1.0 - exp( - fogDensity * fogDensity * fogDepth * fogDepth );
+            } else {
+                fogFactor = smoothstep( fogNear, fogFar, fogDepth );
+            }
+        }
+        finalAo = mix(finalAo, 1.0, fogFactor);
         if (renderMode == 0.0) {
             gl_FragColor = vec4( mix(sceneTexel.rgb, color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
         } else if (renderMode == 1.0) {

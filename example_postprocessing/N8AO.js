@@ -369,6 +369,21 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
         },
         "distanceFalloff": {
             value: 1.0
+        },
+        "fog": {
+            value: false
+        },
+        "fogExp": {
+            value: false
+        },
+        "fogDensity": {
+            value: 0.0
+        },
+        "fogNear": {
+            value: Infinity
+        },
+        "fogFar": {
+            value: Infinity
         }
     },
     vertexShader: /* glsl */ `
@@ -395,8 +410,14 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
     uniform bool logDepth;
     uniform bool ortho;
     uniform bool screenSpaceRadius;
+    uniform bool fog;
+    uniform bool fogExp;
+    uniform float fogDensity;
+    uniform float fogNear;
+    uniform float fogFar;
     uniform float radius;
     uniform float distanceFalloff;
+    uniform vec3 cameraPos;
     varying vec2 vUv;
     highp float linearize_depth(highp float d, highp float zNear,highp float zFar)
     {
@@ -476,12 +497,11 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
     void main() {
         //vec4 texel = texture2D(tDiffuse, vUv);//vec3(0.0);
         vec4 sceneTexel = texture2D(sceneDiffuse, vUv);
-
-        #ifdef HALFRES 
         float depth = texture2D(
             sceneDepth,
             vUv
         ).x;
+        #ifdef HALFRES 
         vec4 texel;
         if (depth == 1.0) {
             texel = vec4(0.0, 0.0, 0.0, 1.0);
@@ -529,6 +549,19 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
 
      
         float finalAo = pow(texel.a, intensity);
+        float fogFactor;
+        float fogDepth = distance(
+            cameraPos,
+            getWorldPos(depth, vUv)
+        );
+        if (fog) {
+            if (fogExp) {
+                fogFactor = 1.0 - exp( - fogDensity * fogDensity * fogDepth * fogDepth );
+            } else {
+                fogFactor = smoothstep( fogNear, fogFar, fogDepth );
+            }
+        }
+        finalAo = mix(finalAo, 1.0, fogFactor);
         if (renderMode == 0.0) {
             gl_FragColor = vec4( mix(sceneTexel.rgb, color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
         } else if (renderMode == 1.0) {
@@ -977,8 +1010,11 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
          * denoiseIterations: number,
          * renderMode: 0 | 1 | 2 | 3 | 4,
          * color: THREE.Color,
-         * gammaCorrection: Boolean,
-         * logarithmicDepthBuffer: Boolean
+         * gammaCorrection: boolean,
+         * logarithmicDepthBuffer: boolean
+         * screenSpaceRadius: boolean,
+         * halfRes: boolean,
+         * depthAwareUpsampling: boolean
          * }
          */ this.autosetGamma = true;
         this.configuration = new Proxy({
@@ -1242,7 +1278,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         this.effectShaderQuad.material.uniforms["projViewMat"].value = this.camera.projectionMatrix.clone().multiply(this.camera.matrixWorldInverse.clone());
         this.effectShaderQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
         this.effectShaderQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-        this.effectShaderQuad.material.uniforms["cameraPos"].value = this.camera.position;
+        this.effectShaderQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new $5Whe3$Vector3());
         this.effectShaderQuad.material.uniforms["resolution"].value = this.configuration.halfRes ? this._r.clone().multiplyScalar(0.5).floor() : this._r;
         this.effectShaderQuad.material.uniforms["time"].value = performance.now() / 1000;
         this.effectShaderQuad.material.uniforms["samples"].value = this.samples;
@@ -1271,7 +1307,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
             this.poissonBlurQuad.material.uniforms["viewMat"].value = this.camera.matrixWorldInverse;
             this.poissonBlurQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
             this.poissonBlurQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-            this.poissonBlurQuad.material.uniforms["cameraPos"].value = this.camera.position;
+            this.poissonBlurQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new $5Whe3$Vector3());
             this.poissonBlurQuad.material.uniforms["resolution"].value = this.configuration.halfRes ? this._r.clone().multiplyScalar(0.5).floor() : this._r;
             this.poissonBlurQuad.material.uniforms["time"].value = performance.now() / 1000;
             this.poissonBlurQuad.material.uniforms["blueNoise"].value = this.bluenoise;
@@ -1309,6 +1345,18 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         this.effectCompositerQuad.material.uniforms["gammaCorrection"].value = this.autosetGamma ? this.renderToScreen : this.configuration.gammaCorrection;
         this.effectCompositerQuad.material.uniforms["tDiffuse"].value = this.writeTargetInternal.texture;
         this.effectCompositerQuad.material.uniforms["color"].value = this._c.copy(this.configuration.color).convertSRGBToLinear();
+        this.effectCompositerQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new $5Whe3$Vector3());
+        this.effectCompositerQuad.material.uniforms["fog"].value = !!this.scene.fog;
+        if (this.scene.fog) {
+            if (this.scene.fog.isFog) {
+                this.effectCompositerQuad.material.uniforms["fogExp"].value = false;
+                this.effectCompositerQuad.material.uniforms["fogNear"].value = this.scene.fog.near;
+                this.effectCompositerQuad.material.uniforms["fogFar"].value = this.scene.fog.far;
+            } else if (this.scene.fog.isFogExp2) {
+                this.effectCompositerQuad.material.uniforms["fogExp"].value = true;
+                this.effectCompositerQuad.material.uniforms["fogDensity"].value = this.scene.fog.density;
+            } else console.error(`Unsupported fog type ${this.scene.fog.constructor.name} in SSAOPass.`);
+        }
         renderer.setRenderTarget(this.renderToScreen ? null : outputBuffer);
         this.effectCompositerQuad.render(renderer);
         if (this.debugMode) {
@@ -1418,6 +1466,10 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
          * color: THREE.Color,
          * gammaCorrection: Boolean,
          * logarithmicDepthBuffer: Boolean
+         * screenSpaceRadius: Boolean,
+         * halfRes: Boolean,
+         * depthAwareUpsampling: Boolean,
+         * autoRenderBeauty: Boolean
          * }
          */ this.configuration = new Proxy({
             aoSamples: 16,
@@ -1433,7 +1485,8 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             logarithmicDepthBuffer: false,
             screenSpaceRadius: false,
             halfRes: false,
-            depthAwareUpsampling: true
+            depthAwareUpsampling: true,
+            autoRenderBeauty: true
         }, {
             set: (target, propName, value)=>{
                 const oldProp = target[propName];
@@ -1456,7 +1509,6 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
         this.configureSampleDependentPasses();
         this.configureHalfResTargets();
-        //  this.effectCompisterQuad = new FullScreenTriangle(new THREE.ShaderMaterial(EffectCompositer));
         this.beautyRenderTarget = new $5Whe3$WebGLRenderTarget(this.width, this.height, {
             minFilter: $5Whe3$LinearFilter,
             magFilter: $5Whe3$NearestFilter
@@ -1628,8 +1680,10 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
                 this.debugMode = false;
             }
         }
-        renderer.setRenderTarget(this.beautyRenderTarget);
-        renderer.render(this.scene, this.camera);
+        if (this.configuration.autoRenderBeauty) {
+            renderer.setRenderTarget(this.beautyRenderTarget);
+            renderer.render(this.scene, this.camera);
+        }
         if (this.debugMode) {
             timerQuery = gl.createQuery();
             gl.beginQuery(ext.TIME_ELAPSED_EXT, timerQuery);
@@ -1659,7 +1713,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         this.effectShaderQuad.material.uniforms["projViewMat"].value = this.camera.projectionMatrix.clone().multiply(this.camera.matrixWorldInverse.clone());
         this.effectShaderQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
         this.effectShaderQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-        this.effectShaderQuad.material.uniforms["cameraPos"].value = this.camera.position;
+        this.effectShaderQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new $5Whe3$Vector3());
         this.effectShaderQuad.material.uniforms["resolution"].value = this.configuration.halfRes ? this._r.clone().multiplyScalar(0.5).floor() : this._r;
         this.effectShaderQuad.material.uniforms["time"].value = performance.now() / 1000;
         this.effectShaderQuad.material.uniforms["samples"].value = this.samples;
@@ -1688,7 +1742,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             this.poissonBlurQuad.material.uniforms["viewMat"].value = this.camera.matrixWorldInverse;
             this.poissonBlurQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
             this.poissonBlurQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-            this.poissonBlurQuad.material.uniforms["cameraPos"].value = this.camera.position;
+            this.poissonBlurQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new $5Whe3$Vector3());
             this.poissonBlurQuad.material.uniforms["resolution"].value = this.configuration.halfRes ? this._r.clone().multiplyScalar(0.5).floor() : this._r;
             this.poissonBlurQuad.material.uniforms["time"].value = performance.now() / 1000;
             this.poissonBlurQuad.material.uniforms["blueNoise"].value = this.bluenoise;
@@ -1726,6 +1780,18 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         this.effectCompositerQuad.material.uniforms["gammaCorrection"].value = this.configuration.gammaCorrection;
         this.effectCompositerQuad.material.uniforms["tDiffuse"].value = this.writeTargetInternal.texture;
         this.effectCompositerQuad.material.uniforms["color"].value = this._c.copy(this.configuration.color).convertSRGBToLinear();
+        this.effectCompositerQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new $5Whe3$Vector3());
+        this.effectCompositerQuad.material.uniforms["fog"].value = !!this.scene.fog;
+        if (this.scene.fog) {
+            if (this.scene.fog.isFog) {
+                this.effectCompositerQuad.material.uniforms["fogExp"].value = false;
+                this.effectCompositerQuad.material.uniforms["fogNear"].value = this.scene.fog.near;
+                this.effectCompositerQuad.material.uniforms["fogFar"].value = this.scene.fog.far;
+            } else if (this.scene.fog.isFogExp2) {
+                this.effectCompositerQuad.material.uniforms["fogExp"].value = true;
+                this.effectCompositerQuad.material.uniforms["fogDensity"].value = this.scene.fog.density;
+            } else console.error(`Unsupported fog type ${this.scene.fog.constructor.name} in SSAOPass.`);
+        }
         renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
         this.effectCompositerQuad.render(renderer);
         if (this.debugMode) {

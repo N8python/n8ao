@@ -131,6 +131,27 @@ If you want the AO to calculate the radius based on screen space, you can do so 
 
 When `screenSpaceRadius` is set to `true`, the `aoRadius` parameter represents the size of the ambient occlusion effect in pixels (recommended to be set between 16 and 64). The `distanceFalloff` parameter becomes a ratio, representing the percent of the screen space radius at which the AO should fade away - it should be set to 0.2 in most cases, but it accepts any value between 0 and 1 (technically even higher than 1, though that is not recommended).
 
+# Using your own render target
+
+If you are using the vanilla `N8AOPass`, you might have a render target with a depth buffer that you want to pass into `N8AOPass`, rather than having the pass create its own. You can do so by setting `n8aopass.beautyRenderTarget` to your render target.
+
+N8AOPass will still render to `n8aopass.beautyRenderTarget` by default, but you can change this by setting `n8aopass.configuration.autoRenderBeauty` to `false`. If you do this, it's up to you to render the scene to `n8aopass.beautyRenderTarget` before using `N8AOPass`.
+
+Finally, your render target must have a depth buffer attached to it. Otherwise, `N8AOPass` will not work and may fail silently (so make sure you attach a depth buffer!).
+
+You can attach a depth buffer to your render target by doing:
+
+```js
+const renderTarget = new THREE.WebGLRenderTarget(width, height);
+// If you just want a depth buffer
+renderTarget.depthTexture = new THREE.DepthTexture(width, height, THREE.UnsignedIntType);
+renderTarget.depthTexture.format = THREE.DepthFormat;
+// If you want a depth buffer and a stencil buffer
+renderTarget.depthTexture = new THREE.DepthTexture(width, height, THREE.UnsignedInt248Type);
+renderTarget.depthTexture.format = THREE.DepthStencilFormat;
+```
+
+
 # Performance
 `N8AOPass` has a "half-resolution" mode for performance-critical applications. Enabling it is as simple as doing:
 

@@ -60,8 +60,11 @@ class N8AOPostPass extends Pass {
          * denoiseIterations: number,
          * renderMode: 0 | 1 | 2 | 3 | 4,
          * color: THREE.Color,
-         * gammaCorrection: Boolean,
-         * logarithmicDepthBuffer: Boolean
+         * gammaCorrection: boolean,
+         * logarithmicDepthBuffer: boolean
+         * screenSpaceRadius: boolean,
+         * halfRes: boolean,
+         * depthAwareUpsampling: boolean
          * }
          */
         this.autosetGamma = true;
@@ -381,7 +384,7 @@ class N8AOPostPass extends Pass {
             this.effectShaderQuad.material.uniforms["projViewMat"].value = this.camera.projectionMatrix.clone().multiply(this.camera.matrixWorldInverse.clone());
             this.effectShaderQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
             this.effectShaderQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-            this.effectShaderQuad.material.uniforms["cameraPos"].value = this.camera.position;
+            this.effectShaderQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new THREE.Vector3());
             this.effectShaderQuad.material.uniforms['resolution'].value = (this.configuration.halfRes ? this._r.clone().multiplyScalar(1 / 2).floor() : this._r);
             this.effectShaderQuad.material.uniforms['time'].value = performance.now() / 1000;
             this.effectShaderQuad.material.uniforms['samples'].value = this.samples;
@@ -407,7 +410,7 @@ class N8AOPostPass extends Pass {
                 this.poissonBlurQuad.material.uniforms["viewMat"].value = this.camera.matrixWorldInverse;
                 this.poissonBlurQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
                 this.poissonBlurQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-                this.poissonBlurQuad.material.uniforms["cameraPos"].value = this.camera.position;
+                this.poissonBlurQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new THREE.Vector3());
                 this.poissonBlurQuad.material.uniforms['resolution'].value = (this.configuration.halfRes ? this._r.clone().multiplyScalar(1 / 2).floor() : this._r);
                 this.poissonBlurQuad.material.uniforms['time'].value = performance.now() / 1000;
                 this.poissonBlurQuad.material.uniforms['blueNoise'].value = this.bluenoise;
@@ -453,6 +456,26 @@ class N8AOPostPass extends Pass {
                 this._c.copy(
                     this.configuration.color
                 ).convertSRGBToLinear();
+            this.effectCompositerQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new THREE.Vector3());
+            this.effectCompositerQuad.material.uniforms["fog"].value = !!this.scene.fog;
+            if (this.scene.fog) {
+                if (
+                    this.scene.fog.isFog
+                ) {
+                    this.effectCompositerQuad.material.uniforms["fogExp"].value = false;
+                    this.effectCompositerQuad.material.uniforms["fogNear"].value = this.scene.fog.near;
+                    this.effectCompositerQuad.material.uniforms["fogFar"].value = this.scene.fog.far;
+                } else if (
+                    this.scene.fog.isFogExp2
+                ) {
+                    this.effectCompositerQuad.material.uniforms["fogExp"].value = true;
+                    this.effectCompositerQuad.material.uniforms["fogDensity"].value = this.scene.fog.density;
+                } else {
+                    console.error(`Unsupported fog type ${this.scene.fog.constructor.name} in SSAOPass.`);
+                }
+
+
+            }
             renderer.setRenderTarget(
                 this.renderToScreen ? null :
                 outputBuffer

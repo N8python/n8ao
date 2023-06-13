@@ -124,6 +124,7 @@ class N8AOPostPass extends Pass {
                     value: null
                 }
             },
+            depthWrite: false,
             vertexShader: `
             varying vec2 vUv;
             void main() {
@@ -149,6 +150,11 @@ class N8AOPostPass extends Pass {
             magFilter: THREE.LinearFilter,
             depthBuffer: false
         });
+        this.outputTargetInternal = new THREE.WebGLRenderTarget(this.width, this.height, {
+            minFilter: THREE.LinearFilter,
+            magFilter: THREE.LinearFilter,
+            depthBuffer: false
+        });
 
         /** @type {THREE.DataTexture} */
         this.bluenoise = //bluenoise;
@@ -165,8 +171,10 @@ class N8AOPostPass extends Pass {
         this.bluenoise.needsUpdate = true;
         this.lastTime = 0;
         this.needsDepthTexture = true;
+        this.needsSwap = true;
         this._r = new THREE.Vector2();
         this._c = new THREE.Color();
+
 
 
     }
@@ -324,6 +332,7 @@ class N8AOPostPass extends Pass {
         if (this.configuration.halfRes) {
             this.depthDownsampleTarget.setSize(width * c, height * c);
         }
+        this.outputTargetInternal.setSize(width, height);
     }
     setDepthTexture(depthTexture) {
         this.depthTexture = depthTexture;
@@ -477,10 +486,17 @@ class N8AOPostPass extends Pass {
 
             }
             renderer.setRenderTarget(
+                /* this.renderToScreen ? null :
+                 outputBuffer*/
+                this.outputTargetInternal
+            );
+            this.effectCompositerQuad.render(renderer);
+            renderer.setRenderTarget(
                 this.renderToScreen ? null :
                 outputBuffer
             );
-            this.effectCompositerQuad.render(renderer);
+            this.copyQuad.material.uniforms["tDiffuse"].value = this.outputTargetInternal.texture;
+            this.copyQuad.render(renderer);
             if (this.debugMode) {
                 gl.endQuery(ext.TIME_ELAPSED_EXT);
                 checkTimerQuery(timerQuery, gl, this);

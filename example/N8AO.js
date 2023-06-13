@@ -1062,6 +1062,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
                     value: null
                 }
             },
+            depthWrite: false,
             vertexShader: `
             varying vec2 vUv;
             void main() {
@@ -1087,6 +1088,11 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
             magFilter: $5Whe3$LinearFilter,
             depthBuffer: false
         });
+        this.outputTargetInternal = new $5Whe3$WebGLRenderTarget(this.width, this.height, {
+            minFilter: $5Whe3$LinearFilter,
+            magFilter: $5Whe3$LinearFilter,
+            depthBuffer: false
+        });
         /** @type {THREE.DataTexture} */ this.bluenoise = new $5Whe3$DataTexture($87431ee93b037844$var$bluenoiseBits, 128, 128);
         this.bluenoise.colorSpace = $5Whe3$NoColorSpace;
         this.bluenoise.wrapS = $5Whe3$RepeatWrapping;
@@ -1096,6 +1102,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         this.bluenoise.needsUpdate = true;
         this.lastTime = 0;
         this.needsDepthTexture = true;
+        this.needsSwap = true;
         this._r = new $5Whe3$Vector2();
         this._c = new $5Whe3$Color();
     }
@@ -1223,6 +1230,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         this.writeTargetInternal.setSize(width * c, height * c);
         this.readTargetInternal.setSize(width * c, height * c);
         if (this.configuration.halfRes) this.depthDownsampleTarget.setSize(width * c, height * c);
+        this.outputTargetInternal.setSize(width, height);
     }
     setDepthTexture(depthTexture) {
         this.depthTexture = depthTexture;
@@ -1357,8 +1365,12 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
                 this.effectCompositerQuad.material.uniforms["fogDensity"].value = this.scene.fog.density;
             } else console.error(`Unsupported fog type ${this.scene.fog.constructor.name} in SSAOPass.`);
         }
-        renderer.setRenderTarget(this.renderToScreen ? null : outputBuffer);
+        renderer.setRenderTarget(/* this.renderToScreen ? null :
+                 outputBuffer*/ this.outputTargetInternal);
         this.effectCompositerQuad.render(renderer);
+        renderer.setRenderTarget(this.renderToScreen ? null : outputBuffer);
+        this.copyQuad.material.uniforms["tDiffuse"].value = this.outputTargetInternal.texture;
+        this.copyQuad.render(renderer);
         if (this.debugMode) {
             gl.endQuery(ext.TIME_ELAPSED_EXT);
             $87431ee93b037844$var$checkTimerQuery(timerQuery, gl, this);
@@ -1464,12 +1476,12 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
          * denoiseIterations: number,
          * renderMode: 0 | 1 | 2 | 3 | 4,
          * color: THREE.Color,
-         * gammaCorrection: Boolean,
-         * logarithmicDepthBuffer: Boolean
-         * screenSpaceRadius: Boolean,
-         * halfRes: Boolean,
-         * depthAwareUpsampling: Boolean,
-         * autoRenderBeauty: Boolean
+         * gammaCorrection: boolean,
+         * logarithmicDepthBuffer: boolean
+         * screenSpaceRadius: boolean,
+         * halfRes: boolean,
+         * depthAwareUpsampling: boolean,
+         * autoRenderBeauty: boolean
          * }
          */ this.configuration = new Proxy({
             aoSamples: 16,

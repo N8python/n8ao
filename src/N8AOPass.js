@@ -61,12 +61,12 @@ class N8AOPass extends Pass {
          * denoiseIterations: number,
          * renderMode: 0 | 1 | 2 | 3 | 4,
          * color: THREE.Color,
-         * gammaCorrection: Boolean,
-         * logarithmicDepthBuffer: Boolean
-         * screenSpaceRadius: Boolean,
-         * halfRes: Boolean,
-         * depthAwareUpsampling: Boolean,
-         * autoRenderBeauty: Boolean
+         * gammaCorrection: boolean,
+         * logarithmicDepthBuffer: boolean
+         * screenSpaceRadius: boolean,
+         * halfRes: boolean,
+         * depthAwareUpsampling: boolean,
+         * autoRenderBeauty: boolean
          * }
          */
         this.configuration = new Proxy({

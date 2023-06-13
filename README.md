@@ -133,11 +133,11 @@ When `screenSpaceRadius` is set to `true`, the `aoRadius` parameter represents t
 
 # Using your own render target
 
-If you are using the vanilla `N8AOPass`, you might have a render target with a depth buffer that you want to pass into `N8AOPass`, rather than having the pass create its own. You can do so by setting `n8aopass.beautyRenderTarget` to your render target.
+If you're utilizing the standard `N8AOPass`, there might be a situation where you have a pre-existing render target with a depth buffer that you'd prefer `N8AOPass` to use, instead of it generating a new one. To accomplish this, you can assign your render target to `n8aopass.beautyRenderTarget`.
 
 N8AOPass will still render to `n8aopass.beautyRenderTarget` by default, but you can change this by setting `n8aopass.configuration.autoRenderBeauty` to `false`. If you do this, it's up to you to render the scene to `n8aopass.beautyRenderTarget` before using `N8AOPass`.
 
-Finally, your render target must have a depth buffer attached to it. Otherwise, `N8AOPass` will not work and may fail silently (so make sure you attach a depth buffer!).
+Finally, your render target must have a depth buffer attached to it. Otherwise, `N8AOPass` will not work and may fail silently.
 
 You can attach a depth buffer to your render target by doing:
 

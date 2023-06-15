@@ -74,7 +74,7 @@ const PoissionBlur = {
      float b = farZ * nearZ / (nearZ - farZ);
      float linDepth = a + b / depth;
      vec4 clipVec = vec4(uv, linDepth, 1.0) * 2.0 - 1.0;
-     vec4 wpos = viewMatrixInv * projectionMatrixInv * clipVec;
+     vec4 wpos = projectionMatrixInv * clipVec;
      return wpos.xyz / wpos.w;
    }
     vec3 getWorldPos(float depth, vec2 coord) {
@@ -86,7 +86,7 @@ const PoissionBlur = {
         vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
         vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
         // Perspective division
-       vec4 worldSpacePosition = viewMatrixInv * viewSpacePosition;
+       vec4 worldSpacePosition = viewSpacePosition;
        worldSpacePosition.xyz /= worldSpacePosition.w;
         return worldSpacePosition.xyz;
     }

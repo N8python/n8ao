@@ -87,7 +87,7 @@ uniform sampler2D bluenoise;
       float b = farZ * nearZ / (nearZ - farZ);
       float linDepth = a + b / depth;
       vec4 clipVec = vec4(uv, linDepth, 1.0) * 2.0 - 1.0;
-      vec4 wpos = viewMatrixInv * projectionMatrixInv * clipVec;
+      vec4 wpos = projectionMatrixInv * clipVec;
       return wpos.xyz / wpos.w;
     }
     vec3 getWorldPos(float depth, vec2 coord) {
@@ -98,7 +98,7 @@ uniform sampler2D bluenoise;
       vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
       vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
       // Perspective division
-     vec4 worldSpacePosition = viewMatrixInv * viewSpacePosition;
+     vec4 worldSpacePosition = viewSpacePosition;
      worldSpacePosition.xyz /= worldSpacePosition.w;
       return worldSpacePosition.xyz;
   }
@@ -177,7 +177,7 @@ void main() {
         ;
         float moveAmt = samplesR[int(mod(i + noise.a * FSAMPLES, FSAMPLES))];
         vec3 samplePos = worldPos + radiusToUse * moveAmt * sampleDirection;
-        vec4 offset = projViewMat * vec4(samplePos, 1.0);
+        vec4 offset = projMat * vec4(samplePos, 1.0);
         offset.xyz /= offset.w;
         offset.xyz = offset.xyz * 0.5 + 0.5;
         float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;

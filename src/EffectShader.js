@@ -37,7 +37,7 @@ void main() {
     #define SAMPLES 16
     #define FSAMPLES 16.0
 uniform sampler2D sceneDiffuse;
-uniform sampler2D sceneNormal;
+uniform highp sampler2D sceneNormal;
 uniform highp sampler2D sceneDepth;
 uniform mat4 projectionMatrixInv;
 uniform mat4 viewMatrixInv;

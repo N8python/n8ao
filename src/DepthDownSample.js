@@ -17,7 +17,7 @@ const DepthDownSample = {
         gl_Position = vec4(position, 1);
     }`,
     fragmentShader: /* glsl */ `
-    uniform sampler2D sceneDepth;
+    uniform highp sampler2D sceneDepth;
     uniform vec2 resolution;
     uniform float near;
     uniform float far;

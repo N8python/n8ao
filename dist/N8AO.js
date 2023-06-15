@@ -124,7 +124,7 @@ void main() {
     #define SAMPLES 16
     #define FSAMPLES 16.0
 uniform sampler2D sceneDiffuse;
-uniform sampler2D sceneNormal;
+uniform highp sampler2D sceneNormal;
 uniform highp sampler2D sceneDepth;
 uniform mat4 projectionMatrixInv;
 uniform mat4 viewMatrixInv;
@@ -397,8 +397,8 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
 		}`,
     fragmentShader: /* glsl */ `
 		uniform sampler2D sceneDiffuse;
-    uniform sampler2D sceneDepth;
-    uniform sampler2D downsampledDepth;
+    uniform highp sampler2D sceneDepth;
+    uniform highp sampler2D downsampledDepth;
     uniform sampler2D tDiffuse;
     uniform sampler2D blueNoise;
     uniform vec2 resolution;
@@ -820,7 +820,7 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
         gl_Position = vec4(position, 1);
     }`,
     fragmentShader: /* glsl */ `
-    uniform sampler2D sceneDepth;
+    uniform highp sampler2D sceneDepth;
     uniform vec2 resolution;
     uniform float near;
     uniform float far;

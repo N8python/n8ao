@@ -29,7 +29,8 @@ const EffectCompositer = {
         'fogExp': { value: false },
         'fogDensity': { value: 0.0 },
         'fogNear': { value: Infinity },
-        'fogFar': { value: Infinity }
+        'fogFar': { value: Infinity },
+        'colorMultiply': { value: true }
 
     },
     vertexShader: /* glsl */ `
@@ -58,6 +59,7 @@ const EffectCompositer = {
     uniform bool screenSpaceRadius;
     uniform bool fog;
     uniform bool fogExp;
+    uniform bool colorMultiply;
     uniform float fogDensity;
     uniform float fogNear;
     uniform float fogFar;
@@ -208,10 +210,11 @@ const EffectCompositer = {
             }
         }
         finalAo = mix(finalAo, 1.0, fogFactor);
+        vec3 aoApplied = color * mix(vec3(1.0), sceneTexel.rgb, float(colorMultiply));
         if (renderMode == 0.0) {
-            gl_FragColor = vec4( mix(sceneTexel.rgb, color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
+            gl_FragColor = vec4( mix(sceneTexel.rgb, aoApplied, 1.0 - finalAo), sceneTexel.a);
         } else if (renderMode == 1.0) {
-            gl_FragColor = vec4( mix(vec3(1.0), color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
+            gl_FragColor = vec4( mix(vec3(1.0), aoApplied, 1.0 - finalAo), sceneTexel.a);
         } else if (renderMode == 2.0) {
             gl_FragColor = vec4( sceneTexel.rgb, sceneTexel.a);
         } else if (renderMode == 3.0) {
@@ -220,7 +223,7 @@ const EffectCompositer = {
             } else if (abs(vUv.x - 0.5) < 1.0 / resolution.x) {
                 gl_FragColor = vec4(1.0);
             } else {
-                gl_FragColor = vec4( mix(sceneTexel.rgb, color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
+                gl_FragColor = vec4( mix(sceneTexel.rgb, aoApplied, 1.0 - finalAo), sceneTexel.a);
             }
         } else if (renderMode == 4.0) {
             if (vUv.x < 0.5) {
@@ -228,7 +231,7 @@ const EffectCompositer = {
             } else if (abs(vUv.x - 0.5) < 1.0 / resolution.x) {
                 gl_FragColor = vec4(1.0);
             } else {
-                gl_FragColor = vec4( mix(vec3(1.0), color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
+                gl_FragColor = vec4( mix(vec3(1.0), aoApplied, 1.0 - finalAo), sceneTexel.a);
             }
         }
         #include <dithering_fragment>

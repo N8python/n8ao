@@ -65,6 +65,7 @@ class N8AOPostPass extends Pass {
          * screenSpaceRadius: boolean,
          * halfRes: boolean,
          * depthAwareUpsampling: boolean
+         * colorMultiply: boolean
          * }
          */
         this.autosetGamma = true;
@@ -82,7 +83,8 @@ class N8AOPostPass extends Pass {
             logarithmicDepthBuffer: false,
             screenSpaceRadius: false,
             halfRes: false,
-            depthAwareUpsampling: true
+            depthAwareUpsampling: true,
+            colorMultiply: true
         }, {
             set: (target, propName, value) => {
                 const oldProp = target[propName];
@@ -352,6 +354,10 @@ class N8AOPostPass extends Pass {
                 this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
                 this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
             }
+            if (inputBuffer.texture.type !== this.outputTargetInternal.texture.type) {
+                this.outputTargetInternal.texture.type = inputBuffer.texture.type;
+                this.outputTargetInternal.texture.needsUpdate = true;
+            }
             let gl;
             let ext;
             let timerQuery;
@@ -465,6 +471,7 @@ class N8AOPostPass extends Pass {
                 this._c.copy(
                     this.configuration.color
                 ).convertSRGBToLinear();
+            this.effectCompositerQuad.material.uniforms["colorMultiply"].value = this.configuration.colorMultiply;
             this.effectCompositerQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new THREE.Vector3());
             this.effectCompositerQuad.material.uniforms["fog"].value = !!this.scene.fog;
             if (this.scene.fog) {

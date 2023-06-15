@@ -67,6 +67,7 @@ class N8AOPass extends Pass {
          * halfRes: boolean,
          * depthAwareUpsampling: boolean,
          * autoRenderBeauty: boolean
+         * colorMultiply: boolean
          * }
          */
         this.configuration = new Proxy({
@@ -84,7 +85,8 @@ class N8AOPass extends Pass {
             screenSpaceRadius: false,
             halfRes: false,
             depthAwareUpsampling: true,
-            autoRenderBeauty: true
+            autoRenderBeauty: true,
+            colorMultiply: true
         }, {
             set: (target, propName, value) => {
                 const oldProp = target[propName];
@@ -432,6 +434,7 @@ class N8AOPass extends Pass {
             this.effectCompositerQuad.material.uniforms["color"].value = this._c.copy(
                 this.configuration.color
             ).convertSRGBToLinear();
+            this.effectCompositerQuad.material.uniforms["colorMultiply"].value = this.configuration.colorMultiply;
             this.effectCompositerQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new THREE.Vector3());
             this.effectCompositerQuad.material.uniforms["fog"].value = !!this.scene.fog;
             if (this.scene.fog) {

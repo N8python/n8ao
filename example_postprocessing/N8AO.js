@@ -384,6 +384,9 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
         },
         "fogFar": {
             value: Infinity
+        },
+        "colorMultiply": {
+            value: true
         }
     },
     vertexShader: /* glsl */ `
@@ -412,6 +415,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
     uniform bool screenSpaceRadius;
     uniform bool fog;
     uniform bool fogExp;
+    uniform bool colorMultiply;
     uniform float fogDensity;
     uniform float fogNear;
     uniform float fogFar;
@@ -562,10 +566,11 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
             }
         }
         finalAo = mix(finalAo, 1.0, fogFactor);
+        vec3 aoApplied = color * mix(vec3(1.0), sceneTexel.rgb, float(colorMultiply));
         if (renderMode == 0.0) {
-            gl_FragColor = vec4( mix(sceneTexel.rgb, color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
+            gl_FragColor = vec4( mix(sceneTexel.rgb, aoApplied, 1.0 - finalAo), sceneTexel.a);
         } else if (renderMode == 1.0) {
-            gl_FragColor = vec4( mix(vec3(1.0), color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
+            gl_FragColor = vec4( mix(vec3(1.0), aoApplied, 1.0 - finalAo), sceneTexel.a);
         } else if (renderMode == 2.0) {
             gl_FragColor = vec4( sceneTexel.rgb, sceneTexel.a);
         } else if (renderMode == 3.0) {
@@ -574,7 +579,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
             } else if (abs(vUv.x - 0.5) < 1.0 / resolution.x) {
                 gl_FragColor = vec4(1.0);
             } else {
-                gl_FragColor = vec4( mix(sceneTexel.rgb, color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
+                gl_FragColor = vec4( mix(sceneTexel.rgb, aoApplied, 1.0 - finalAo), sceneTexel.a);
             }
         } else if (renderMode == 4.0) {
             if (vUv.x < 0.5) {
@@ -582,7 +587,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
             } else if (abs(vUv.x - 0.5) < 1.0 / resolution.x) {
                 gl_FragColor = vec4(1.0);
             } else {
-                gl_FragColor = vec4( mix(vec3(1.0), color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
+                gl_FragColor = vec4( mix(vec3(1.0), aoApplied, 1.0 - finalAo), sceneTexel.a);
             }
         }
         #include <dithering_fragment>
@@ -1015,6 +1020,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
          * screenSpaceRadius: boolean,
          * halfRes: boolean,
          * depthAwareUpsampling: boolean
+         * colorMultiply: boolean
          * }
          */ this.autosetGamma = true;
         this.configuration = new Proxy({
@@ -1031,7 +1037,8 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
             logarithmicDepthBuffer: false,
             screenSpaceRadius: false,
             halfRes: false,
-            depthAwareUpsampling: true
+            depthAwareUpsampling: true,
+            colorMultiply: true
         }, {
             set: (target, propName, value)=>{
                 const oldProp = target[propName];
@@ -1248,6 +1255,10 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
             this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
             this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
         }
+        if (inputBuffer.texture.type !== this.outputTargetInternal.texture.type) {
+            this.outputTargetInternal.texture.type = inputBuffer.texture.type;
+            this.outputTargetInternal.texture.needsUpdate = true;
+        }
         let gl;
         let ext;
         let timerQuery;
@@ -1353,6 +1364,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         this.effectCompositerQuad.material.uniforms["gammaCorrection"].value = this.autosetGamma ? this.renderToScreen : this.configuration.gammaCorrection;
         this.effectCompositerQuad.material.uniforms["tDiffuse"].value = this.writeTargetInternal.texture;
         this.effectCompositerQuad.material.uniforms["color"].value = this._c.copy(this.configuration.color).convertSRGBToLinear();
+        this.effectCompositerQuad.material.uniforms["colorMultiply"].value = this.configuration.colorMultiply;
         this.effectCompositerQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new $5Whe3$Vector3());
         this.effectCompositerQuad.material.uniforms["fog"].value = !!this.scene.fog;
         if (this.scene.fog) {
@@ -1482,6 +1494,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
          * halfRes: boolean,
          * depthAwareUpsampling: boolean,
          * autoRenderBeauty: boolean
+         * colorMultiply: boolean
          * }
          */ this.configuration = new Proxy({
             aoSamples: 16,
@@ -1498,7 +1511,8 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             screenSpaceRadius: false,
             halfRes: false,
             depthAwareUpsampling: true,
-            autoRenderBeauty: true
+            autoRenderBeauty: true,
+            colorMultiply: true
         }, {
             set: (target, propName, value)=>{
                 const oldProp = target[propName];
@@ -1792,6 +1806,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         this.effectCompositerQuad.material.uniforms["gammaCorrection"].value = this.configuration.gammaCorrection;
         this.effectCompositerQuad.material.uniforms["tDiffuse"].value = this.writeTargetInternal.texture;
         this.effectCompositerQuad.material.uniforms["color"].value = this._c.copy(this.configuration.color).convertSRGBToLinear();
+        this.effectCompositerQuad.material.uniforms["colorMultiply"].value = this.configuration.colorMultiply;
         this.effectCompositerQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new $5Whe3$Vector3());
         this.effectCompositerQuad.material.uniforms["fog"].value = !!this.scene.fog;
         if (this.scene.fog) {

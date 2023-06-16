@@ -745,6 +745,10 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
         vec3 normal = data.rgb * 2.0 - 1.0;
         float count = 1.0;
         float d = texture2D(sceneDepth, vUv).x;
+        if (d == 1.0) {
+          gl_FragColor = data;
+          return;
+        }
         vec3 worldPos = getWorldPos(d, vUv);
         float size = radius;
         float angle;
@@ -777,7 +781,7 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
             float dSample = texture2D(sceneDepth, uv + offset).x;
             vec3 worldPosSample = getWorldPos(dSample, uv + offset);
             float tangentPlaneDist = abs(dot(worldPos - worldPosSample, normal));
-            float rangeCheck = exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0) * (1.0 - abs(occSample - baseOcc));
+            float rangeCheck = dSample == 1.0 ? 0.0 :exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0) * (1.0 - abs(occSample - baseOcc));
             occlusion += occSample * rangeCheck;
             count += rangeCheck;
         }

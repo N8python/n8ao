@@ -33,6 +33,9 @@ const EffectCompositer = {
         'colorMultiply': { value: true }
 
     },
+    depthWrite: false,
+    depthTest: false,
+
     vertexShader: /* glsl */ `
 		varying vec2 vUv;
 		void main() {
@@ -195,6 +198,12 @@ const EffectCompositer = {
         vec4 texel = texture2D(tDiffuse, vUv);
         #endif
 
+        #ifdef LOGDEPTH
+        texel.a = clamp(texel.a, 0.0, 1.0);
+        if (texel.a == 0.0) {
+          texel.a = 1.0;
+        }
+        #endif
      
         float finalAo = pow(texel.a, intensity);
         float fogFactor;

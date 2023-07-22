@@ -24,6 +24,9 @@ const PoissionBlur = {
         'logDepth': { value: false },
         'screenSpaceRadius': { value: false }
     },
+    depthWrite: false,
+    depthTest: false,
+
     vertexShader: /* glsl */ `
 		varying vec2 vUv;
 		void main() {

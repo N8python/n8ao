@@ -10,6 +10,9 @@ const DepthDownSample = {
         'projectionMatrixInv': { value: new THREE.Matrix4() },
         'logDepth': { value: false },
     },
+    depthWrite: false,
+    depthTest: false,
+
     vertexShader: /* glsl */ `
     varying vec2 vUv;
     void main() {

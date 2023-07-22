@@ -114,6 +114,8 @@ const $1ed45968c1160c3c$export$c9b263b9a17dffd7 = {
             value: false
         }
     },
+    depthWrite: false,
+    depthTest: false,
     vertexShader: /* glsl */ `
 varying vec2 vUv;
 void main() {
@@ -389,6 +391,8 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
             value: true
         }
     },
+    depthWrite: false,
+    depthTest: false,
     vertexShader: /* glsl */ `
 		varying vec2 vUv;
 		void main() {
@@ -551,6 +555,12 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
         vec4 texel = texture2D(tDiffuse, vUv);
         #endif
 
+        #ifdef LOGDEPTH
+        texel.a = clamp(texel.a, 0.0, 1.0);
+        if (texel.a == 0.0) {
+          texel.a = 1.0;
+        }
+        #endif
      
         float finalAo = pow(texel.a, intensity);
         float fogFactor;
@@ -666,6 +676,8 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
             value: false
         }
     },
+    depthWrite: false,
+    depthTest: false,
     vertexShader: /* glsl */ `
 		varying vec2 vUv;
 		void main() {
@@ -825,6 +837,8 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
             value: false
         }
     },
+    depthWrite: false,
+    depthTest: false,
     vertexShader: /* glsl */ `
     varying vec2 vUv;
     void main() {

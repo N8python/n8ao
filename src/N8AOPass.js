@@ -86,7 +86,9 @@ class N8AOPass extends Pass {
             halfRes: false,
             depthAwareUpsampling: true,
             autoRenderBeauty: true,
-            colorMultiply: true
+            colorMultiply: true,
+            transparencyAware: false,
+            stencil: false
         }, {
             set: (target, propName, value) => {
                 const oldProp = target[propName];
@@ -106,24 +108,51 @@ class N8AOPass extends Pass {
                 if (propName === "depthAwareUpsampling" && oldProp !== value) {
                     this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
                 }
+                if (propName === "transparencyAware" && oldProp !== value) {
+                    this.autoDetectTransparency = false;
+                    this.configureTransparencyTarget();
+                }
+                if (propName === "stencil" && oldProp !== value) {
+                    /*  this.beautyRenderTarget.stencilBuffer = value;
+                      this.beautyRenderTarget.depthTexture.format = value ? THREE.DepthStencilFormat : THREE.DepthFormat;
+                      this.beautyRenderTarget.depthTexture.type = value ? THREE.UnsignedInt248Type : THREE.UnsignedIntType;
+                      this.beautyRenderTarget.depthTexture.needsUpdate = true;
+                      this.beautyRenderTarget.needsUpdate = true;*/
+                    this.beautyRenderTarget.dispose();
+                    this.beautyRenderTarget = new THREE.WebGLRenderTarget(this.width, this.height, {
+                        minFilter: THREE.LinearFilter,
+                        magFilter: THREE.NearestFilter,
+                        type: THREE.HalfFloatType,
+                        format: THREE.RGBAFormat,
+                        stencilBuffer: value
+                    });
+                    this.beautyRenderTarget.depthTexture = new THREE.DepthTexture(this.width, this.height, value ? THREE.UnsignedInt248Type : THREE.UnsignedIntType);
+                    this.beautyRenderTarget.depthTexture.format = value ? THREE.DepthStencilFormat : THREE.DepthFormat;
+                }
                 return true;
             }
         });
         /** @type {THREE.Vector3[]} */
         this.samples = [];
-        /** @type {number[]} */
-        this.samplesR = [];
         /** @type {THREE.Vector2[]} */
         this.samplesDenoise = [];
-        this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
-        this.configureSampleDependentPasses();
-        this.configureHalfResTargets();
+        this.autoDetectTransparency = true;
+
         this.beautyRenderTarget = new THREE.WebGLRenderTarget(this.width, this.height, {
             minFilter: THREE.LinearFilter,
-            magFilter: THREE.NearestFilter
+            magFilter: THREE.NearestFilter,
+            type: THREE.HalfFloatType,
+            format: THREE.RGBAFormat,
+            stencilBuffer: false
         });
         this.beautyRenderTarget.depthTexture = new THREE.DepthTexture(this.width, this.height, THREE.UnsignedIntType);
         this.beautyRenderTarget.depthTexture.format = THREE.DepthFormat;
+        this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
+        this.configureSampleDependentPasses();
+        this.configureHalfResTargets();
+        this.detectTransparency();
+        this.configureTransparencyTarget();
+
 
         this.writeTargetInternal = new THREE.WebGLRenderTarget(this.width, this.height, {
             minFilter: THREE.LinearFilter,
@@ -193,13 +222,123 @@ class N8AOPass extends Pass {
             }
         }
     }
+    detectTransparency() {
+        if (this.autoDetectTransparency) {
+            let isTransparency = false;
+            this.scene.traverse((obj) => {
+                if (obj.material && obj.material.transparent) {
+                    isTransparency = true;
+                }
+            });
+            if (isTransparency) {
+                this.configuration.transparencyAware = true;
+            }
+        }
+    }
+    configureTransparencyTarget() {
+        if (this.configuration.transparencyAware) {
+            this.transparencyRenderTargetDWFalse = new THREE.WebGLRenderTarget(this.width, this.height, {
+                minFilter: THREE.LinearFilter,
+                magFilter: THREE.NearestFilter,
+                type: THREE.HalfFloatType,
+                format: THREE.RGBAFormat
+            });
+            this.transparencyRenderTargetDWTrue = new THREE.WebGLRenderTarget(this.width, this.height, {
+                minFilter: THREE.LinearFilter,
+                magFilter: THREE.NearestFilter,
+                type: THREE.HalfFloatType,
+                format: THREE.RGBAFormat
+            });
+            this.transparencyRenderTargetDWTrue.depthTexture = new THREE.DepthTexture(this.width, this.height, THREE.UnsignedIntType);
+            this.depthCopyPass = new FullScreenTriangle(new THREE.ShaderMaterial({
+                uniforms: {
+                    depthTexture: { value: this.beautyRenderTarget.depthTexture },
+                },
+                vertexShader: /* glsl */ `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = vec4(position, 1);
+            }`,
+                fragmentShader: /* glsl */ `
+            uniform sampler2D depthTexture;
+            varying vec2 vUv;
+            void main() {
+               gl_FragDepth = texture2D(depthTexture, vUv).r + 0.00001;
+               gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+            }
+            `,
+
+            }));
+        } else {
+            if (this.transparencyRenderTargetDWFalse) {
+                this.transparencyRenderTargetDWFalse.dispose();
+                this.transparencyRenderTargetDWFalse = null;
+            }
+            if (this.transparencyRenderTargetDWTrue) {
+                this.transparencyRenderTargetDWTrue.dispose();
+                this.transparencyRenderTargetDWTrue = null;
+            }
+            if (this.depthCopyPass) {
+                this.depthCopyPass.dispose();
+                this.depthCopyPass = null;
+            }
+        }
+    }
+    renderTransparency(renderer) {
+        const oldBackground = this.scene.background;
+        const oldClearColor = renderer.getClearColor(new THREE.Color());
+        const oldClearAlpha = renderer.getClearAlpha();
+        const oldVisibility = new Map();
+        const oldAutoClearDepth = renderer.autoClearDepth;
+        this.scene.traverse((obj) => {
+            oldVisibility.set(obj, obj.visible);
+        });
+
+        // Override the state
+        this.scene.background = null;
+        renderer.autoClearDepth = false;
+        renderer.setClearColor(new THREE.Color(0, 0, 0), 0);
+
+        this.depthCopyPass.material.uniforms.depthTexture.value = this.beautyRenderTarget.depthTexture;
+
+        // Render out transparent objects WITHOUT depth write
+        renderer.setRenderTarget(this.transparencyRenderTargetDWFalse);
+        this.scene.traverse((obj) => {
+            if (obj.material) {
+                obj.visible = oldVisibility.get(obj) && obj.material.transparent && !obj.material.depthWrite && !obj.userData.treatAsOpaque;
+            }
+        });
+        renderer.clear(true, true, true);
+        this.depthCopyPass.render(renderer);
+        renderer.render(this.scene, this.camera);
+
+        // Render out transparent objects WITH depth write
+
+        renderer.setRenderTarget(this.transparencyRenderTargetDWTrue);
+        this.scene.traverse((obj) => {
+            if (obj.material) {
+                obj.visible = oldVisibility.get(obj) && obj.material.transparent && obj.material.depthWrite && !obj.userData.treatAsOpaque;
+            }
+        });
+        renderer.clear(true, true, true);
+        this.depthCopyPass.render(renderer);
+        renderer.render(this.scene, this.camera);
+
+        // Restore
+        this.scene.traverse((obj) => {
+            obj.visible = oldVisibility.get(obj);
+        });
+        renderer.setClearColor(oldClearColor, oldClearAlpha);
+        this.scene.background = oldBackground;
+        renderer.autoClearDepth = oldAutoClearDepth;
+    }
     configureSampleDependentPasses() {
         this.configureAOPass(this.configuration.logarithmicDepthBuffer);
         this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
     }
     configureAOPass(logarithmicDepthBuffer = false) {
         this.samples = this.generateHemisphereSamples(this.configuration.aoSamples);
-        this.samplesR = this.generateHemisphereSamplesR(this.configuration.aoSamples);
         const e = {...EffectShader };
         e.fragmentShader = e.fragmentShader.replace("16", this.configuration.aoSamples).replace("16.0", this.configuration.aoSamples + ".0");
         if (logarithmicDepthBuffer) {
@@ -253,7 +392,7 @@ class N8AOPass extends Pass {
             const points = [];
             for (let k = 0; k < n; k++) {
                 const theta = 2.399963 * k;
-                const r = (Math.sqrt(k + 0.5) / Math.sqrt(n));
+                let r = (Math.sqrt(k + 0.5) / Math.sqrt(n));
                 const x = r * Math.cos(theta);
                 const y = r * Math.sin(theta);
                 // Project to hemisphere
@@ -262,18 +401,6 @@ class N8AOPass extends Pass {
 
             }
             return points;
-        }
-        /**
-         * 
-         * @param {number} n 
-         * @returns {number[]}
-         */
-    generateHemisphereSamplesR(n) {
-            let samplesR = [];
-            for (let i = 0; i < n; i++) {
-                samplesR.push((i + 1) / n);
-            }
-            return samplesR;
         }
         /**
          * 
@@ -309,6 +436,10 @@ class N8AOPass extends Pass {
         if (this.configuration.halfRes) {
             this.depthDownsampleTarget.setSize(width * c, height * c);
         }
+        if (this.configuration.transparencyAware) {
+            this.transparencyRenderTargetDWFalse.setSize(width, height);
+            this.transparencyRenderTargetDWTrue.setSize(width, height);
+        }
     }
     render(renderer, writeBuffer, readBuffer, deltaTime, maskActive) {
             if (renderer.capabilities.logarithmicDepthBuffer !== this.configuration.logarithmicDepthBuffer) {
@@ -317,6 +448,7 @@ class N8AOPass extends Pass {
                 this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
                 this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
             }
+            this.detectTransparency();
             let gl;
             let ext;
             let timerQuery;
@@ -331,6 +463,9 @@ class N8AOPass extends Pass {
             if (this.configuration.autoRenderBeauty) {
                 renderer.setRenderTarget(this.beautyRenderTarget);
                 renderer.render(this.scene, this.camera);
+                if (this.configuration.transparencyAware) {
+                    this.renderTransparency(renderer);
+                }
             }
             if (this.debugMode) {
                 timerQuery = gl.createQuery();
@@ -369,7 +504,6 @@ class N8AOPass extends Pass {
             this.effectShaderQuad.material.uniforms['resolution'].value = (this.configuration.halfRes ? this._r.clone().multiplyScalar(1 / 2).floor() : this._r);
             this.effectShaderQuad.material.uniforms['time'].value = performance.now() / 1000;
             this.effectShaderQuad.material.uniforms['samples'].value = this.samples;
-            this.effectShaderQuad.material.uniforms['samplesR'].value = this.samplesR;
             this.effectShaderQuad.material.uniforms['bluenoise'].value = this.bluenoise;
             this.effectShaderQuad.material.uniforms['radius'].value = trueRadius;
             this.effectShaderQuad.material.uniforms['distanceFalloff'].value = this.configuration.distanceFalloff;
@@ -413,6 +547,12 @@ class N8AOPass extends Pass {
             // Now, we have the blurred AO in writeTargetInternal
             // End the blur
             // Start the composition
+            if (this.configuration.transparencyAware) {
+                this.effectCompositerQuad.material.uniforms["transparencyDWFalse"].value = this.transparencyRenderTargetDWFalse.texture;
+                this.effectCompositerQuad.material.uniforms["transparencyDWTrue"].value = this.transparencyRenderTargetDWTrue.texture;
+                this.effectCompositerQuad.material.uniforms["transparencyDWTrueDepth"].value = this.transparencyRenderTargetDWTrue.depthTexture;
+                this.effectCompositerQuad.material.uniforms["transparencyAware"].value = true;
+            }
             this.effectCompositerQuad.material.uniforms["sceneDiffuse"].value = this.beautyRenderTarget.texture;
             this.effectCompositerQuad.material.uniforms["sceneDepth"].value = this.beautyRenderTarget.depthTexture;
             this.effectCompositerQuad.material.uniforms["near"].value = this.camera.near;

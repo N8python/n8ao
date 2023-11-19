@@ -5,6 +5,10 @@ const EffectCompositer = {
         'sceneDiffuse': { value: null },
         'sceneDepth': { value: null },
         'tDiffuse': { value: null },
+        'transparencyDWFalse': { value: null },
+        'transparencyDWTrue': { value: null },
+        'transparencyDWTrueDepth': { value: null },
+        'transparencyAware': { value: false },
         'projMat': { value: new THREE.Matrix4() },
         'viewMat': { value: new THREE.Matrix4() },
         'projectionMatrixInv': { value: new THREE.Matrix4() },
@@ -46,6 +50,9 @@ const EffectCompositer = {
 		uniform sampler2D sceneDiffuse;
     uniform highp sampler2D sceneDepth;
     uniform highp sampler2D downsampledDepth;
+    uniform highp sampler2D transparencyDWFalse;
+    uniform highp sampler2D transparencyDWTrue;
+    uniform highp sampler2D transparencyDWTrueDepth;
     uniform sampler2D tDiffuse;
     uniform sampler2D blueNoise;
     uniform vec2 resolution;
@@ -63,6 +70,7 @@ const EffectCompositer = {
     uniform bool fog;
     uniform bool fogExp;
     uniform bool colorMultiply;
+    uniform bool transparencyAware;
     uniform float fogDensity;
     uniform float fogNear;
     uniform float fogFar;
@@ -181,7 +189,7 @@ const EffectCompositer = {
                 vec4 sampleInfo = texelFetch(tDiffuse, p, 0);
                 vec3 normalSample = sampleInfo.xyz * 2.0 - 1.0;
                 vec3 worldPosSample = getWorldPos(sampleDepth, pUv);
-                float tangentPlaneDist = abs(dot(worldPos - worldPosSample, normal));
+                float tangentPlaneDist = abs(dot(worldPosSample - worldPos, normal));
                 float rangeCheck = exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0);
                 float weight = rangeCheck;
                 totalWeight += weight;
@@ -217,6 +225,16 @@ const EffectCompositer = {
             } else {
                 fogFactor = smoothstep( fogNear, fogFar, fogDepth );
             }
+        }
+        if (transparencyAware) {
+            float transparencyDWOff = texture2D(transparencyDWFalse, vUv).a;
+            float transparencyDWOn = texture2D(transparencyDWTrue, vUv).a;
+            float adjustmentFactorOff = transparencyDWOff;
+            float adjustmentFactorOn = (1.0 - transparencyDWOn) * (
+                texture2D(transparencyDWTrueDepth, vUv).r == texture2D(sceneDepth, vUv).r ? 1.0 : 0.0
+            );
+            float adjustmentFactor = max(adjustmentFactorOff, adjustmentFactorOn);
+            finalAo = mix(finalAo, 1.0, adjustmentFactor);
         }
         finalAo = mix(finalAo, 1.0, fogFactor);
         vec3 aoApplied = color * mix(vec3(1.0), sceneTexel.rgb, float(colorMultiply));

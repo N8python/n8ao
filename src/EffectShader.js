@@ -15,7 +15,6 @@ const EffectShader = {
         'resolution': { value: new THREE.Vector2() },
         'time': { value: 0.0 },
         'samples': { value: [] },
-        'samplesR': { value: [] },
         'bluenoise': { value: null },
         'distanceFalloff': { value: 1.0 },
         'radius': { value: 5.0 },
@@ -49,7 +48,6 @@ uniform vec3 cameraPos;
 uniform vec2 resolution;
 uniform float time;
 uniform vec3[SAMPLES] samples;
-uniform float[SAMPLES] samplesR;
 uniform float radius;
 uniform float distanceFalloff;
 uniform float near;
@@ -131,6 +129,14 @@ uniform sampler2D bluenoise;
     return normalize(cross(dpdx, dpdy));
 }
 
+mat3 makeRotationZ(float theta) {
+	float c = cos(theta);
+	float s = sin(theta);
+	return mat3(c, - s, 0,
+			s,  c, 0,
+			0,  0, 1);
+  }
+
 void main() {
       vec4 diffuse = texture2D(sceneDiffuse, vUv);
       float depth = texture2D(sceneDepth, vUv).x;
@@ -139,29 +145,22 @@ void main() {
         return;
       }
       vec3 worldPos = getWorldPos(depth, vUv);
-    //  vec3 normal = texture2D(sceneNormal, vUv).rgb;//computeNormal(worldPos, vUv);
       #ifdef HALFRES
         vec3 normal = texture2D(sceneNormal, vUv).rgb;
       #else
         vec3 normal = computeNormal(worldPos, vUv);
       #endif
       vec4 noise = texture2D(bluenoise, gl_FragCoord.xy / 128.0);
-      vec3 randomVec = normalize(noise.rgb * 2.0 - 1.0);
-      vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
-      vec3 bitangent = cross(normal, tangent);
-      mat3 tbn = mat3(tangent, bitangent, normal);
+        vec3 helperVec = vec3(0.0, 1.0, 0.0);
+        if (dot(helperVec, normal) > 0.99) {
+          helperVec = vec3(1.0, 0.0, 0.0);
+        }
+        vec3 tangent = normalize(cross(helperVec, normal));
+        vec3 bitangent = cross(normal, tangent);
+        mat3 tbn = mat3(tangent, bitangent, normal) *  makeRotationZ(noise.r * 2.0 * 3.1415962) ;
+
       float occluded = 0.0;
       float totalWeight = 0.0;
-     /* float radiusScreen = distance(
-        worldPos,
-        getWorldPos(depth, vUv + 
-          vec2(48.0, 0.0) / resolution)
-      );/*vUv.x < 0.5 ? radius : min(distance(
-        worldPos,
-        getWorldPos(depth, vUv + 
-          vec2(100.0, 0.0) / resolution)
-      ), radius);
-      float distanceFalloffScreen = radiusScreen * 0.2;*/
       float radiusToUse = screenSpaceRadius ? distance(
         worldPos,
         getWorldPos(depth, vUv +
@@ -169,44 +168,52 @@ void main() {
       ) : radius;
       float distanceFalloffToUse =screenSpaceRadius ?
           radiusToUse * distanceFalloff
-      : distanceFalloff;
-      float bias = (0.1 / near) * fwidth(distance(worldPos, cameraPos)) / radiusToUse;
+      : radiusToUse * distanceFalloff * 0.2;
+      float bias = (min(
+        0.1,
+        distanceFalloffToUse * 0.1
+      ) / near) * fwidth(distance(worldPos, cameraPos)) / radiusToUse;
+      float phi = 1.61803398875;
+      float offsetMove = 0.0;
+      float offsetMoveInv = 1.0 / FSAMPLES;
       for(float i = 0.0; i < FSAMPLES; i++) {
-        vec3 sampleDirection = 
-        tbn * 
-        samples[int(i)];
-        ;
-        float moveAmt = samplesR[int(mod(i + noise.a * FSAMPLES, FSAMPLES))];
+        vec3 sampleDirection = tbn * samples[int(i)];
+
+        float moveAmt = fract(noise.g + offsetMove);
+        offsetMove += offsetMoveInv;
+
         vec3 samplePos = worldPos + radiusToUse * moveAmt * sampleDirection;
         vec4 offset = projMat * vec4(samplePos, 1.0);
         offset.xyz /= offset.w;
         offset.xyz = offset.xyz * 0.5 + 0.5;
-        float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;
-        /*float distSample = logDepth ? linearize_depth_log(sampleDepth, near, far) 
-         (ortho ?  linearize_depth_ortho(sampleDepth, near, far) : linearize_depth(sampleDepth, near, far));*/
-        #ifdef LOGDEPTH
-        float distSample = linearize_depth_log(sampleDepth, near, far);
-        #else
-        float distSample = ortho ? linearize_depth_ortho(sampleDepth, near, far) : linearize_depth(sampleDepth, near, far);
-        #endif
-        float distWorld = ortho ? linearize_depth_ortho(offset.z, near, far) : linearize_depth(offset.z, near, far);
-        float rangeCheck = smoothstep(0.0, 1.0, distanceFalloffToUse / (abs(distSample - distWorld)));
-        vec2 diff = gl_FragCoord.xy - ( offset.xy * resolution);
-        float weight = dot(sampleDirection, normal);
-          occluded += rangeCheck * weight * 
-            (distSample + bias
-               < distWorld ? 1.0 : 0.0) * (
-          (dot(
-            diff,
-            diff
-             
-            ) < 1.0 || (sampleDepth == depth) || (
-              offset.x < 0.0 || offset.x > 1.0 || offset.y < 0.0 || offset.y > 1.0
-            ) ? 0.0 : 1.0)
-          );
-          totalWeight += weight;
+        
+        vec2 diff = gl_FragCoord.xy - floor(offset.xy * resolution);
+        vec2 clipRangeCheck = step(vec2(0.0),offset.xy) * step(offset.xy, vec2(1.0));
+          float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;
+
+          #ifdef LOGDEPTH
+
+          float distSample = linearize_depth_log(sampleDepth, near, far);
+
+          #else
+
+          float distSample = ortho ? linearize_depth_ortho(sampleDepth, near, far) : linearize_depth(sampleDepth, near, far);
+
+          #endif
+
+          float distWorld = ortho ? linearize_depth_ortho(offset.z, near, far) : linearize_depth(offset.z, near, far);
+          
+          float rangeCheck = smoothstep(0.0, 1.0, distanceFalloffToUse / (abs(distSample - distWorld)));
+          
+          float sampleValid = (clipRangeCheck.x * clipRangeCheck.y);
+          occluded += rangeCheck * float(sampleDepth != depth) * float(distSample + bias < distWorld) * step(
+            1.0,
+            dot(diff, diff)
+          ) * sampleValid;
+          
+          totalWeight += sampleValid;
       }
-      float occ = clamp(1.0 - occluded / totalWeight, 0.0, 1.0);
+      float occ = clamp(1.0 - occluded / (totalWeight == 0.0 ? 1.0 : totalWeight), 0.0, 1.0);
       gl_FragColor = vec4(0.5 + 0.5 * normal, occ);
 }`
 

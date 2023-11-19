@@ -130,8 +130,8 @@ const PoissionBlur = {
             vec2(worldRadius, 0.0) / resolution)
         ) : worldRadius;
         float distanceFalloffToUse =screenSpaceRadius ?
-            radiusToUse * distanceFalloff
-        : distanceFalloff;
+        radiusToUse * distanceFalloff
+    : radiusToUse * distanceFalloff * 0.2;
 
 
         for(int i = 0; i < NUM_SAMPLES; i++) {
@@ -141,7 +141,7 @@ const PoissionBlur = {
             vec3 normalSample = dataSample.rgb * 2.0 - 1.0;
             float dSample = texture2D(sceneDepth, uv + offset).x;
             vec3 worldPosSample = getWorldPos(dSample, uv + offset);
-            float tangentPlaneDist = abs(dot(worldPos - worldPosSample, normal));
+            float tangentPlaneDist = abs(dot(worldPosSample - worldPos, normal));
             float rangeCheck = dSample == 1.0 ? 0.0 :exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0) * (1.0 - abs(occSample - baseOcc));
             occlusion += occSample * rangeCheck;
             count += rangeCheck;

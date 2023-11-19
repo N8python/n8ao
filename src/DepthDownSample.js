@@ -113,47 +113,6 @@ const DepthDownSample = {
         gNormal = vec4(computeNormal(
             getWorldPos(samples[chosenIndex], uvSamples[chosenIndex]), uvSamples[chosenIndex]
         ), 0.0);
-       /* float[] samples = float[4](depth00, depth10, depth01, depth11);
-        float c = 0.25 * (depth00 + depth10 + depth01 + depth11);
-        float[] distances = float[4](depth00, depth10, depth01, depth11);
-        float maxDistance = max(max(distances[0], distances[1]), max(distances[2], distances[3]));
-
-        int remaining[3];
-        int rejected[3];
-        int i, j, k;
-
-        for(i = 0, j = 0, k = 0; i < 4; ++i) {
-            if (distances[i] < maxDistance) {
-                remaining[j++] = i;
-            } else {
-                rejected[k++] = i;
-            }
-        }
-        for(;j < 3;++j) {
-            remaining[j] = rejected[--k];
-        }
-        vec3 s = vec3(
-            samples[remaining[0]],
-            samples[remaining[1]],
-            samples[remaining[2]]
-        );
-        c = (s.x + s.y + s.z) / 3.0;
-
-        distances[0] = abs(c - s.x);
-        distances[1] = abs(c - s.y);
-        distances[2] = abs(c - s.z);
-
-        float minDistance = min(min(distances[0], distances[1]), distances[2]);
-
-        for(i = 0; i < 3; ++i) {
-            if (distances[i] == minDistance) {
-                break;
-            }
-        }*/
-      /*  gl_FragColor = vec4(samples[remaining[i]], 0.0, 0.0, 0.0);
-        gNormal = vec4(computeNormal(
-            getWorldPos(samples[remaining[i]], uvSamples[remaining[i]]), uvSamples[remaining[i]]
-        ), 0.0);*/
     }`
 };
 

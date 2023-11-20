@@ -19,7 +19,6 @@ Scene w/ AO applied:
 
 [![screenshot](example/tutorial/contrast.jpeg)](https://n8python.github.io/n8ao/example/)
 
-
 # Installation
 
 From npm: `npm install n8ao` -> `import {N8AOPass} from "n8ao"`
@@ -68,7 +67,7 @@ import { EffectComposer, RenderPass } from "postprocessing";
 // ... 
 
 const composer = new EffectComposer(renderer);
-/* Only difference is that N8AOPostPass requires a RenderPass before it, whereas N8AOPass replaces the render pass. Everything else is identical. */
+/* The only difference is that N8AOPostPass requires a RenderPass before it, whereas N8AOPass replaces the render pass. Everything else is identical. */
 composer.addPass(new RenderPass(scene, camera));
 const n8aopass = new N8AOPostPass(
     scene,
@@ -99,7 +98,6 @@ n8aopass.configuration.aoRadius = 5.0;
 n8aopass.configuration.distanceFalloff = 1.0;
 n8aopass.configuration.intensity = 5.0;
 n8aopass.configuration.color = new THREE.Color(0, 0, 0);
-
 ```
 
 They are covered below:
@@ -116,6 +114,9 @@ They are covered below:
 | <img src="example/tutorial/distancefalloff1.jpeg" alt="Image 1"/> | <img src="example/tutorial/distancefalloff2.jpeg" alt="Image 2"/> | <img src="example/tutorial/distancefalloff3.jpeg" alt="Image 3"/> |
 |:---:|:---:|:---:|
 | Distance Falloff 0.1 | Distance Falloff 1 | Distance Falloff 5 |
+
+### Migration Notice
+The API changed slightly with N8AO 1.7 - the only change you should have to make is adjusting your `distanceFalloff` parameter - choosing 1.0 is a safe value. For the exact same results you had before, you can do `distanceFalloff = 5.0 * oldDistanceFalloff / radius`.
 
 `intensity: number` - A purely artistic control for the intensity of the AO - runs the ao through the function `pow(ao, intensity)`, which has the effect of darkening areas with more ambient occlusion. Useful to make the effect more pronounced. An intensity of 2 generally produces soft ambient occlusion that isn't too noticeable, whereas one of 5 produces heavily prominent ambient occlusion. 
 
@@ -251,7 +252,7 @@ N8AOPass supports stencil buffers, but you must enable them via `configuration.s
 n8aopass.configuration.stencil = true;
 ```
 
-N8AOPostPass does not have such on option, as `pmndrs/postprocessing` has its own API for stencil buffers, which is shown below:
+N8AOPostPass does not have such an option, as `pmndrs/postprocessing` has its own API for stencil buffers, which is shown below:
 
 ```js
  const composer = new EffectComposer(renderer, {

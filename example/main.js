@@ -22,6 +22,7 @@ async function main() {
     document.body.appendChild(renderer.domElement);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.VSMShadowMap;
+
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 25, 0);
     const stats = new Stats();
@@ -87,6 +88,9 @@ async function main() {
     sponza.traverse(object => {
         if (object.material) {
             object.material.envMap = environment;
+            if (object.material.map) {
+                object.material.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+            }
         }
     });
     sponza.scale.set(10, 10, 10);

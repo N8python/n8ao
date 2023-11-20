@@ -86,6 +86,9 @@ async function main() {
     sponza.traverse(object => {
         if (object.material) {
             object.material.envMap = environment;
+            if (object.material.map) {
+                object.material.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+            }
         }
     })
     sponza.scale.set(10, 10, 10)

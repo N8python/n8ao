@@ -230,9 +230,7 @@ class N8AOPass extends Pass {
                     isTransparency = true;
                 }
             });
-            if (isTransparency) {
-                this.configuration.transparencyAware = true;
-            }
+            this.configuration.transparencyAware = isTransparency;
         }
     }
     configureTransparencyTarget() {

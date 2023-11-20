@@ -188,6 +188,7 @@ void main() {
         offset.xyz = offset.xyz * 0.5 + 0.5;
         
         vec2 diff = gl_FragCoord.xy - floor(offset.xy * resolution);
+        // From Rabbid76's hbao
         vec2 clipRangeCheck = step(vec2(0.0),offset.xy) * step(offset.xy, vec2(1.0));
           float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;
 

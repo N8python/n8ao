@@ -111,7 +111,7 @@ They are covered below:
 |:---:|:---:|:---:|
 | Radius 1 | Radius 5 | Radius 10 |
 
-`distanceFalloff: number` - The second most important parameter for your ambient occlusion effect. Controls how fast the ambient occlusion fades away with distance in world units. Generally should be set to ~1/5 of your radius. Decreasing it reduces "haloing" artifacts and improves the accuracy of your occlusion, but making it too small makes the ambient occlusion disappear entirely. 
+`distanceFalloff: number` - The second most important parameter for your ambient occlusion effect. Controls how fast the ambient occlusion fades away with distance in proportion to its radius. Defaults to 1, and behind-the-scenes, is a calculated as a ratio of your radius (0.2 * distanceFalloff is the size used for attenuation). Decreasing it reduces "haloing" artifacts and improves the accuracy of your occlusion, but making it too small makes the ambient occlusion disappear entirely. 
 
 | <img src="example/tutorial/distancefalloff1.jpeg" alt="Image 1"/> | <img src="example/tutorial/distancefalloff2.jpeg" alt="Image 2"/> | <img src="example/tutorial/distancefalloff3.jpeg" alt="Image 3"/> |
 |:---:|:---:|:---:|
@@ -221,6 +221,55 @@ The display modes available are:
 | No AO | Shows only the scene without the AO effect  ![screenshot](example/tutorial/noao.jpeg) |
 | Split | Shows the scene with and without the AO effect side-by-side (divided by a white line in the middle) ![screenshot](example/tutorial/split.jpeg) |
 | Split AO | Shows the AO effect as a black and white image, and the scene with the AO effect applied side-by-side (divided by a white line in the middle) ![screenshot](example/tutorial/splitao.jpeg) |
+
+# Transparency
+
+N8AO supports transparency as best as it can - transparent objects with depthWrite disabled will not occlude anything and look completely correct. Transparent object with depthWrite enabled may lead to slight artifacts, but on the whole look fine (as long as their alpha value isn't too low).
+
+The transparency solution used by N8AO is based of auxillary render target storing
+the accumulated alpha for each pixel - meaning that in order for transparency to work, all transparent objects **will be rendered twice**. This normally isn't a problem, but if you have a lot of transparent objects that fill up a large portion of the screen, it can be a significant performance hit.
+
+Transparency is automatically enabled in scenes that have transparent objects in them, but can be set manually via `configuration.transparencyAware`:
+
+```js
+n8aopass.configuration.transparencyAware = true;
+```
+
+Setting this value disables automatic transparency detection.
+
+You can also force N8AO to treat a transparent object as opaque (useful if you are using transparency in a non-traditional manner and want N8AO to ignore it - for instance, with three.js's ShadowMesh), by setting `treatAsOpaque` to `true` in the object's `userData`:
+
+```js
+mesh.userData.treatAsOpaque = true;
+```
+
+# Stencil
+
+N8AOPass supports stencil buffers, but you must enable them via `configuration.stencil`:
+
+```js
+n8aopass.configuration.stencil = true;
+```
+
+N8AOPostPass does not have such on option, as `pmndrs/postprocessing` has its own API for stencil buffers, which is shown below:
+
+```js
+ const composer = new EffectComposer(renderer, {
+        stencilBuffer: true, // stencil
+        depthBuffer: true,
+        frameBufferType: THREE.HalfFloatType
+});
+const renderPass = new RenderPass(scene, camera);
+renderPass.clearPass.setClearFlags(true, true, true); // Ensures that the render pass clears the stencil buffer
+composer.addPass(renderPass);
+const n8aopass = new N8AOPostPass(
+        scene,
+        camera,
+        clientWidth,
+        clientHeight
+    );
+composer.addPass(n8aopass);
+```
 
 # Compatibility
 

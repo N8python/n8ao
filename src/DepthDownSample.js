@@ -84,12 +84,11 @@ const DepthDownSample = {
     void main() {
         vec2 uv = vUv - vec2(0.5) / resolution;
         vec2 pixelSize = vec2(1.0) / resolution;
-        vec2[] uvSamples = vec2[4](
-            uv,
-            uv + vec2(pixelSize.x, 0.0),
-            uv + vec2(0.0, pixelSize.y),
-            uv + pixelSize
-        );
+        vec2[4] uvSamples;
+        uvSamples[0] = uv;
+        uvSamples[1] = uv + vec2(pixelSize.x, 0.0);
+        uvSamples[2] = uv + vec2(0.0, pixelSize.y);
+        uvSamples[3] = uv + pixelSize;
         float depth00 = texture2D(sceneDepth, uvSamples[0]).r;
         float depth10 = texture2D(sceneDepth, uvSamples[1]).r;
         float depth01 = texture2D(sceneDepth, uvSamples[2]).r;
@@ -102,7 +101,11 @@ const DepthDownSample = {
             targetDepth = maxDepth;
         }
         int chosenIndex = 0;
-        float[] samples = float[4](depth00, depth10, depth01, depth11);
+        float[4] samples;
+        samples[0] = depth00;
+        samples[1] = depth10;
+        samples[2] = depth01;
+        samples[3] = depth11;
         for(int i = 0; i < 4; ++i) {
             if (samples[i] == targetDepth) {
                 chosenIndex = i;

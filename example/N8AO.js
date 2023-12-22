@@ -290,7 +290,7 @@ void main() {
 
           float distWorld = ortho ? linearize_depth_ortho(offset.z, near, far) : linearize_depth(offset.z, near, far);
           
-          float rangeCheck = smoothstep(0.0, 1.0, distanceFalloffToUse / (abs(distSample - distWorld)));
+          float rangeCheck = distSample == distWorld ? 0.0 : smoothstep(0.0, 1.0, distanceFalloffToUse / (abs(distSample - distWorld)));
           
           float sampleValid = (clipRangeCheck.x * clipRangeCheck.y);
           occluded += rangeCheck * float(sampleDepth != depth) * float(distSample + bias < distWorld) * step(

@@ -1,12 +1,12 @@
 {
     "name": "n8ao",
-    "version": "1.7.2",
+    "version": "1.7.3",
     "description": "An efficient and visually pleasing implementation of SSAO with an emphasis on temporal stability and artist control.",
     "main": "dist/N8AO.js",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
         "build": "rm -rf .parcel-cache && parcel build src/N8AOPass.js && cp dist/N8AO.js example/N8AO.js && cp dist/N8AO.js.map example/N8AO.js.map && cp dist/N8AO.js example_postprocessing/N8AO.js && cp dist/N8AO.js.map example_postprocessing/N8AO.js.map",
-        "dev": "nodemon --watch src --ext .js --exec 'npm run build' & live-server"
+        "dev": "nodemon --watch src --ext .js --exec 'npm run build' & nodemon dev-server.js"
     },
     "repository": {
         "type": "git",
@@ -22,8 +22,8 @@
         "main": {}
     },
     "peerDependencies": {
-        "three": ">=0.137",
-        "postprocessing": ">=6.30.0"
+        "postprocessing": ">=6.30.0",
+        "three": ">=0.137"
     },
     "type": "module",
     "devDependencies": {
@@ -31,5 +31,9 @@
         "nodemon": "^2.0.22",
         "parcel": "^2.8.3",
         "servez": "^1.14.2"
+    },
+    "dependencies": {
+        "cors": "^2.8.5",
+        "express": "^4.18.2"
     }
 }

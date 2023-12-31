@@ -185,12 +185,12 @@ async function main() {
 
     function animate() {
         aoMeta.innerHTML = `${clientWidth}x${clientHeight}`
-        torusKnot.rotation.x += 0.033;
-        torusKnot.rotation.y += 0.033;
-        torusKnot2.rotation.x += 0.033;
-        torusKnot2.rotation.y += 0.033;
-        torusKnot3.rotation.x += 0.033;
-        torusKnot3.rotation.y += 0.033;
+        torusKnot.rotation.x = performance.now() * 0.002;
+        torusKnot.rotation.y = performance.now() * 0.002;
+        torusKnot2.rotation.x = performance.now() * 0.002;
+        torusKnot2.rotation.y = performance.now() * 0.002;
+        torusKnot3.rotation.x = performance.now() * 0.002;
+        torusKnot3.rotation.y = performance.now() * 0.002;
         torusKnot2.material.opacity = Math.sin(performance.now() * 0.001) * 0.5 + 0.5;
         torusKnot3.material.opacity = Math.cos(performance.now() * 0.001) * 0.5 + 0.5;
         torusKnotShadow2.material.color.g = 1 - 0.6 * torusKnot2.material.opacity;

@@ -1,6 +1,6 @@
 {
     "name": "n8ao",
-    "version": "1.7.3",
+    "version": "1.7.4",
     "description": "An efficient and visually pleasing implementation of SSAO with an emphasis on temporal stability and artist control.",
     "main": "dist/N8AO.js",
     "scripts": {
@@ -30,9 +30,7 @@
         "live-server": "^1.2.2",
         "nodemon": "^2.0.22",
         "parcel": "^2.8.3",
-        "servez": "^1.14.2"
-    },
-    "dependencies": {
+        "servez": "^1.14.2",
         "cors": "^2.8.5",
         "express": "^4.18.2"
     }

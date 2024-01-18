@@ -187,7 +187,7 @@ const EffectCompositer = {
                 vec2 pUv = vec2(p) / (resolution * 0.5);
                 float sampleDepth = texelFetch(downsampledDepth,p, 0).x;
                 vec4 sampleInfo = texelFetch(tDiffuse, p, 0);
-                vec3 normalSample = sampleInfo.xyz * 2.0 - 1.0;
+                vec3 normalSample = sampleInfo.gba * 2.0 - 1.0;
                 vec3 worldPosSample = getWorldPos(sampleDepth, pUv);
                 float tangentPlaneDist = abs(dot(worldPosSample - worldPos, normal));
                 float rangeCheck = exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0);
@@ -207,13 +207,13 @@ const EffectCompositer = {
         #endif
 
         #ifdef LOGDEPTH
-        texel.a = clamp(texel.a, 0.0, 1.0);
-        if (texel.a == 0.0) {
-          texel.a = 1.0;
+        texel.r = clamp(texel.r, 0.0, 1.0);
+        if (texel.r == 0.0) {
+          texel.r = 1.0;
         }
         #endif
      
-        float finalAo = pow(texel.a, intensity);
+        float finalAo = pow(texel.r, intensity);
         float fogFactor;
         float fogDepth = distance(
             cameraPos,

@@ -244,6 +244,17 @@ You can also force N8AO to treat a transparent object as opaque (useful if you a
 mesh.userData.treatAsOpaque = true;
 ```
 
+# Accumulation
+
+When the camera is still, you can enable the accumulation of samples across frames, which will reduce noise and improve the quality of the AO effect. This is done by setting `configuration.accumulate` to `true`:
+
+```js
+n8aopass.configuration.accumulate = true;
+```
+
+For the best results, `denoiseRadius` should be set to 0 and `denoiseSamples` should be set to 1. This will ensure that the AO effect is not blurred, and that the accumulation is purely temporal.
+
+The accumulation effect works best in scenes with no motion - as it does not calculate motion vectors and will only work with the camera still. If the camera is moving, the accumulation effect will be disabled automatically. But if an object is moving, N8AO won't be able to pick up on that and the object's ambient occlusion will become blurred.
 # Stencil
 
 N8AOPass supports stencil buffers, but you must enable them via `configuration.stencil`:

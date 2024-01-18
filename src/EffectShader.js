@@ -22,7 +22,8 @@ const EffectShader = {
         'far': { value: 1000.0 },
         'logDepth': { value: false },
         'ortho': { value: false },
-        'screenSpaceRadius': { value: false }
+        'screenSpaceRadius': { value: false },
+        'frame': { value: 0.0 }
     },
     depthWrite: false,
     depthTest: false,
@@ -52,6 +53,7 @@ uniform float radius;
 uniform float distanceFalloff;
 uniform float near;
 uniform float far;
+uniform float frame;
 uniform bool logDepth;
 uniform bool ortho;
 uniform bool screenSpaceRadius;
@@ -151,6 +153,12 @@ void main() {
         vec3 normal = computeNormal(worldPos, vUv);
       #endif
       vec4 noise = texture2D(bluenoise, gl_FragCoord.xy / 128.0);
+      vec2 harmoniousNumbers = vec2(
+        1.618033988749895,
+        1.324717957244746
+      );
+      noise.rg += harmoniousNumbers * frame;
+      noise.rg = fract(noise.rg);
         vec3 helperVec = vec3(0.0, 1.0, 0.0);
         if (dot(helperVec, normal) > 0.99) {
           helperVec = vec3(1.0, 0.0, 0.0);
@@ -215,7 +223,7 @@ void main() {
           totalWeight += sampleValid;
       }
       float occ = clamp(1.0 - occluded / (totalWeight == 0.0 ? 1.0 : totalWeight), 0.0, 1.0);
-      gl_FragColor = vec4(0.5 + 0.5 * normal, occ);
+      gl_FragColor = vec4(occ, 0.5 + 0.5 * normal);
 }`
 
 

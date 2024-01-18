@@ -101,9 +101,9 @@ const PoissionBlur = {
         vec2 texelSize = vec2(1.0 / resolution.x, 1.0 / resolution.y);
         vec2 uv = vUv;
         vec4 data = texture2D(tDiffuse, vUv);
-        float occlusion = data.a;
-        float baseOcc = data.a;
-        vec3 normal = data.rgb * 2.0 - 1.0;
+        float occlusion = data.r;
+        float baseOcc = data.r;
+        vec3 normal = data.gba * 2.0 - 1.0;
         float count = 1.0;
         float d = texture2D(sceneDepth, vUv).x;
         if (d == 1.0) {
@@ -137,8 +137,8 @@ const PoissionBlur = {
         for(int i = 0; i < NUM_SAMPLES; i++) {
             vec2 offset = (rotationMatrix * poissonDisk[i]) * texelSize * size;
             vec4 dataSample = texture2D(tDiffuse, uv + offset);
-            float occSample = dataSample.a;
-            vec3 normalSample = dataSample.rgb * 2.0 - 1.0;
+            float occSample = dataSample.r;
+            vec3 normalSample = dataSample.gba * 2.0 - 1.0;
             float dSample = texture2D(sceneDepth, uv + offset).x;
             vec3 worldPosSample = getWorldPos(dSample, uv + offset);
             float tangentPlaneDist = abs(dot(worldPosSample - worldPos, normal));
@@ -155,7 +155,7 @@ const PoissionBlur = {
             occlusion = 1.0;
           }
         #endif
-        gl_FragColor = vec4(0.5 + 0.5 * normal, occlusion);
+        gl_FragColor = vec4(occlusion, 0.5 + 0.5 * normal);
     }
     `
 

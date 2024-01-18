@@ -109,7 +109,8 @@ async function main() {
         renderMode: "Combined",
         color: [0, 0, 0],
         colorMultiply: true,
-        stencil: true
+        stencil: true,
+        accumulate: false
     };
     const gui = new GUI();
     gui.add(effectController, "aoSamples", 1.0, 64.0, 1.0);
@@ -143,6 +144,7 @@ async function main() {
     gui.add(effectController, "intensity", 0.0, 10.0, 0.01);
     gui.addColor(effectController, "color");
     gui.add(effectController, "colorMultiply");
+    gui.add(effectController, "accumulate");
     gui.add(effectController, "renderMode", ["Combined", "AO", "No AO", "Split", "Split AO"]);
     // Post Effects
     const composer = new EffectComposer(renderer);
@@ -166,15 +168,19 @@ async function main() {
     const timerDOM = document.getElementById("aoTime");
     const aoMeta = document.getElementById("aoMetadata");
     n8aopass.enableDebugMode();
+    const clock = new THREE.Clock();
 
     function animate() {
         aoMeta.innerHTML = `${clientWidth}x${clientHeight}`
-        torusKnot.rotation.x = performance.now() * 0.002;
-        torusKnot.rotation.y = performance.now() * 0.002;
-        torusKnot2.rotation.x = performance.now() * 0.002;
-        torusKnot2.rotation.y = performance.now() * 0.002;
-        torusKnot3.rotation.x = performance.now() * 0.002;
-        torusKnot3.rotation.y = performance.now() * 0.002;
+        const spin = 2 * clock.getDelta();
+        if (!effectController.accumulate) {
+            torusKnot.rotation.x += spin;
+            torusKnot.rotation.y += spin;
+            torusKnot2.rotation.x += spin;
+            torusKnot2.rotation.y += spin;
+            torusKnot3.rotation.x += spin;
+            torusKnot3.rotation.y += spin;
+        }
         torusKnot2.material.opacity = Math.sin(performance.now() * 0.001) * 0.5 + 0.5;
         torusKnot3.material.opacity = Math.cos(performance.now() * 0.001) * 0.5 + 0.5;
         torusKnotShadow2.material.color.g = 1 - 0.6 * torusKnot2.material.opacity;
@@ -207,6 +213,7 @@ async function main() {
         n8aopass.configuration.halfRes = effectController.halfRes;
         n8aopass.configuration.depthAwareUpsampling = effectController.depthAwareUpsampling;
         n8aopass.configuration.colorMultiply = effectController.colorMultiply;
+        n8aopass.configuration.accumulate = effectController.accumulate;
         composer.render();
         timerDOM.innerHTML = n8aopass.lastTime.toFixed(2);
         controls.update();

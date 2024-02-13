@@ -952,7 +952,7 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
     void main() {
         vec2 uv = vUv - vec2(0.5) / resolution;
         vec2 pixelSize = vec2(1.0) / resolution;
-        vec2[4] uvSamples;
+        highp vec2[4] uvSamples;
         uvSamples[0] = uv;
         uvSamples[1] = uv + vec2(pixelSize.x, 0.0);
         uvSamples[2] = uv + vec2(0.0, pixelSize.y);

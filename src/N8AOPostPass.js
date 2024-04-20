@@ -238,29 +238,31 @@ class N8AOPostPass extends Pass {
         this.firstFrame();
 
         if (this.configuration.halfRes) {
-            this.depthDownsampleTarget =
-                /*new THREE.WebGLRenderTarget(this.width / 2, this.height / 2, {
-                               minFilter: THREE.NearestFilter,
-                               magFilter: THREE.NearestFilter,
-                               depthBuffer: false,
-                               format: THREE.RedFormat,
-                               type: THREE.FloatType
-                           });*/
-                new THREE.WebGLMultipleRenderTargets(
-                    this.width / 2,
-                    this.height / 2,
-                    2
-                );
-            this.depthDownsampleTarget.texture[0].format = THREE.RedFormat;
-            this.depthDownsampleTarget.texture[0].type = THREE.FloatType;
-            this.depthDownsampleTarget.texture[0].minFilter = THREE.NearestFilter;
-            this.depthDownsampleTarget.texture[0].magFilter = THREE.NearestFilter;
-            this.depthDownsampleTarget.texture[0].depthBuffer = false;
-            this.depthDownsampleTarget.texture[1].format = THREE.RGBAFormat;
-            this.depthDownsampleTarget.texture[1].type = THREE.HalfFloatType;
-            this.depthDownsampleTarget.texture[1].minFilter = THREE.NearestFilter;
-            this.depthDownsampleTarget.texture[1].magFilter = THREE.NearestFilter;
-            this.depthDownsampleTarget.texture[1].depthBuffer = false;
+            this.depthDownsampleTarget = THREE.REVISION > 161 ? new THREE.WebGLRenderTarget(
+                this.width / 2,
+                this.height / 2,
+                {
+                    count : 2
+                }
+            ) : new THREE.WebGLMultipleRenderTargets(
+                this.width / 2,
+                this.height / 2,
+                2
+            );
+            if (THREE.REVISION <= 161) {
+                this.depthDownsampleTarget.textures = this.depthDownsampleTarget.texture;
+            }
+                    
+            this.depthDownsampleTarget.textures[0].format = THREE.RedFormat;
+            this.depthDownsampleTarget.textures[0].type = THREE.FloatType;
+            this.depthDownsampleTarget.textures[0].minFilter = THREE.NearestFilter;
+            this.depthDownsampleTarget.textures[0].magFilter = THREE.NearestFilter;
+            this.depthDownsampleTarget.textures[0].depthBuffer = false;
+            this.depthDownsampleTarget.textures[1].format = THREE.RGBAFormat;
+            this.depthDownsampleTarget.textures[1].type = THREE.HalfFloatType;
+            this.depthDownsampleTarget.textures[1].minFilter = THREE.NearestFilter;
+            this.depthDownsampleTarget.textures[1].magFilter = THREE.NearestFilter;
+            this.depthDownsampleTarget.textures[1].depthBuffer = false;
 
 
             this.depthDownsampleQuad = new FullScreenTriangle(new THREE.ShaderMaterial(DepthDownSample));
@@ -577,8 +579,8 @@ class N8AOPostPass extends Pass {
                     this.depthDownsampleQuad.render(renderer);
                 }
                 this.effectShaderQuad.material.uniforms["sceneDiffuse"].value = inputBuffer.texture;
-                this.effectShaderQuad.material.uniforms["sceneDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.texture[0] : this.depthTexture;
-                this.effectShaderQuad.material.uniforms["sceneNormal"].value = this.configuration.halfRes ? this.depthDownsampleTarget.texture[1] : null;
+                this.effectShaderQuad.material.uniforms["sceneDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.textures[0] : this.depthTexture;
+                this.effectShaderQuad.material.uniforms["sceneNormal"].value = this.configuration.halfRes ? this.depthDownsampleTarget.textures[1] : null;
                 this.effectShaderQuad.material.uniforms["projMat"].value = this.camera.projectionMatrix;
                 this.effectShaderQuad.material.uniforms["viewMat"].value = this.camera.matrixWorldInverse;
                 this.effectShaderQuad.material.uniforms["projViewMat"].value = this.camera.projectionMatrix.clone().multiply(this.camera.matrixWorldInverse.clone());
@@ -605,7 +607,7 @@ class N8AOPostPass extends Pass {
                 for (let i = 0; i < this.configuration.denoiseIterations; i++) {
                     [this.writeTargetInternal, this.readTargetInternal] = [this.readTargetInternal, this.writeTargetInternal];
                     this.poissonBlurQuad.material.uniforms["tDiffuse"].value = this.readTargetInternal.texture;
-                    this.poissonBlurQuad.material.uniforms["sceneDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.texture[0] : this.depthTexture;
+                    this.poissonBlurQuad.material.uniforms["sceneDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.textures[0] : this.depthTexture;
                     this.poissonBlurQuad.material.uniforms["projMat"].value = this.camera.projectionMatrix;
                     this.poissonBlurQuad.material.uniforms["viewMat"].value = this.camera.matrixWorldInverse;
                     this.poissonBlurQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
@@ -654,7 +656,7 @@ class N8AOPostPass extends Pass {
             this.effectCompositerQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
             this.effectCompositerQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
             this.effectCompositerQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
-            this.effectCompositerQuad.material.uniforms["downsampledDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.texture[0] : this.depthTexture;
+            this.effectCompositerQuad.material.uniforms["downsampledDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.textures[0] : this.depthTexture;
             this.effectCompositerQuad.material.uniforms["resolution"].value = this._r;
             this.effectCompositerQuad.material.uniforms["blueNoise"].value = this.bluenoise;
             this.effectCompositerQuad.material.uniforms["intensity"].value = this.configuration.intensity;

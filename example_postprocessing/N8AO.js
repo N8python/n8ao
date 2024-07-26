@@ -644,7 +644,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
         }
         #include <dithering_fragment>
         if (gammaCorrection) {
-            gl_FragColor = LinearTosRGB(gl_FragColor);
+            gl_FragColor = sRGBTransferOETF(gl_FragColor);
         }
     }
     `

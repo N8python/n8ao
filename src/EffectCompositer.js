@@ -263,7 +263,7 @@ const EffectCompositer = {
         }
         #include <dithering_fragment>
         if (gammaCorrection) {
-            gl_FragColor = LinearTosRGB(gl_FragColor);
+            gl_FragColor = sRGBTransferOETF(gl_FragColor);
         }
     }
     `

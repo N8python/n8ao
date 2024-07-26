@@ -180,9 +180,9 @@ async function main() {
             torusKnot2.rotation.y += spin;
             torusKnot3.rotation.x += spin;
             torusKnot3.rotation.y += spin;
+            torusKnot2.material.opacity = Math.sin(performance.now() * 0.001) * 0.5 + 0.5;
+            torusKnot3.material.opacity = Math.cos(performance.now() * 0.001) * 0.5 + 0.5;
         }
-        torusKnot2.material.opacity = Math.sin(performance.now() * 0.001) * 0.5 + 0.5;
-        torusKnot3.material.opacity = Math.cos(performance.now() * 0.001) * 0.5 + 0.5;
         torusKnotShadow2.material.color.g = 1 - 0.6 * torusKnot2.material.opacity;
         torusKnotShadow2.material.color.b = 1 - 0.6 * torusKnot2.material.opacity;
         torusKnotShadow3.material.color.r = 1 - 0.6 * torusKnot3.material.opacity;

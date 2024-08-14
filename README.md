@@ -244,6 +244,13 @@ You can also force N8AO to treat a transparent object as opaque (useful if you a
 mesh.userData.treatAsOpaque = true;
 ```
 
+You can also simply have an object not receive AO at all (this requires rendering it twice, so it is not recommended for performance-critical applications) by setting `cannotReceiveAO` to `true` in the object's `userData`:
+
+```js
+mesh.userData.cannotReceiveAO = false;
+```
+
+
 # Accumulation
 
 When the camera is still, you can enable the accumulation of samples across frames, which will reduce noise and improve the quality of the AO effect. This is done by setting `configuration.accumulate` to `true`:

@@ -1300,7 +1300,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         // Render out transparent objects WITHOUT depth write
         renderer.setRenderTarget(this.transparencyRenderTargetDWFalse);
         this.scene.traverse((obj)=>{
-            if (obj.material) obj.visible = oldVisibility.get(obj) && obj.material.transparent && !obj.material.depthWrite && !obj.userData.treatAsOpaque;
+            if (obj.material) obj.visible = oldVisibility.get(obj) && (obj.material.transparent && !obj.material.depthWrite && !obj.userData.treatAsOpaque || !!obj.userData.cannotReceiveAO);
         });
         renderer.clear(true, true, true);
         this.depthCopyPass.render(renderer);
@@ -1945,7 +1945,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         // Render out transparent objects WITHOUT depth write
         renderer.setRenderTarget(this.transparencyRenderTargetDWFalse);
         this.scene.traverse((obj)=>{
-            if (obj.material) obj.visible = oldVisibility.get(obj) && obj.material.transparent && !obj.material.depthWrite && !obj.userData.treatAsOpaque;
+            if (obj.material) obj.visible = oldVisibility.get(obj) && (obj.material.transparent && !obj.material.depthWrite && !obj.userData.treatAsOpaque || !!obj.userData.cannotReceiveAO);
         });
         renderer.clear(true, true, true);
         this.depthCopyPass.render(renderer);

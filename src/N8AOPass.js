@@ -234,16 +234,15 @@ class N8AOPass extends Pass {
         if (this.configuration.halfRes) {
             this.depthDownsampleTarget = THREE.REVISION > 161 ? new THREE.WebGLRenderTarget(
                 this.width / 2,
-                this.height / 2,
-                {
-                    count : 2
+                this.height / 2, {
+                    count: 2
                 }
             ) : new THREE.WebGLMultipleRenderTargets(
                 this.width / 2,
                 this.height / 2,
                 2
             );
-            
+
             if (THREE.REVISION <= 161) {
                 this.depthDownsampleTarget.textures = this.depthDownsampleTarget.texture;
             }
@@ -353,7 +352,7 @@ class N8AOPass extends Pass {
         renderer.setRenderTarget(this.transparencyRenderTargetDWFalse);
         this.scene.traverse((obj) => {
             if (obj.material) {
-                obj.visible = oldVisibility.get(obj) && obj.material.transparent && !obj.material.depthWrite && !obj.userData.treatAsOpaque;
+                obj.visible = oldVisibility.get(obj) && ((obj.material.transparent && !obj.material.depthWrite && !obj.userData.treatAsOpaque) || !!obj.userData.cannotReceiveAO);
             }
         });
         renderer.clear(true, true, true);

@@ -133,7 +133,7 @@ const PoissionBlur = {
         radiusToUse * distanceFalloff
     : radiusToUse * distanceFalloff * 0.2;
 
-
+        float invDistance = (1.0 / distanceFalloffToUse);
         for(int i = 0; i < NUM_SAMPLES; i++) {
             vec2 offset = (rotationMatrix * poissonDisk[i]) * texelSize * size;
             vec4 dataSample = texture2D(tDiffuse, uv + offset);
@@ -142,7 +142,7 @@ const PoissionBlur = {
             float dSample = texture2D(sceneDepth, uv + offset).x;
             vec3 worldPosSample = getWorldPos(dSample, uv + offset);
             float tangentPlaneDist = abs(dot(worldPosSample - worldPos, normal));
-            float rangeCheck = dSample == 1.0 ? 0.0 :exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0) * (1.0 - abs(occSample - baseOcc));
+            float rangeCheck = float(dSample != 1.0) * exp(-1.0 * tangentPlaneDist * invDistance ) * max(dot(normal, normalSample), 0.0);
             occlusion += occSample * rangeCheck;
             count += rangeCheck;
         }

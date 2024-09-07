@@ -20,7 +20,7 @@ function checkTimerQuery(timerQuery, gl, pass) {
     if (available) {
         const elapsedTimeInNs = gl.getQueryParameter(timerQuery, gl.QUERY_RESULT);
         const elapsedTimeInMs = elapsedTimeInNs / 1000000;
-        pass.lastTime = elapsedTimeInMs;
+        pass.lastTime = pass.lastTime === 0 ? elapsedTimeInMs : pass.timeRollingAverage * pass.lastTime + (1 - pass.timeRollingAverage) * elapsedTimeInMs;
     } else {
         // If the result is not available yet, check again after a delay
         setTimeout(() => {
@@ -73,12 +73,15 @@ class N8AOPass extends Pass {
         this.configuration = new Proxy({
             aoSamples: 16,
             aoRadius: 5.0,
+            aoTones: 0.0,
             denoiseSamples: 8,
             denoiseRadius: 12,
             distanceFalloff: 1.0,
             intensity: 5,
             denoiseIterations: 2.0,
             renderMode: 0,
+            biasOffset: 0.0,
+            biasMultiplier: 0.0,
             color: new THREE.Color(0, 0, 0),
             gammaCorrection: true,
             logarithmicDepthBuffer: false,
@@ -104,19 +107,19 @@ class N8AOPass extends Pass {
                     }
                 }
                 if (propName === 'aoSamples' && oldProp !== value) {
-                    this.configureAOPass(this.configuration.logarithmicDepthBuffer);
+                    this.configureAOPass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
                 }
                 if (propName === 'denoiseSamples' && oldProp !== value) {
-                    this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
+                    this.configureDenoisePass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
                 }
                 if (propName === "halfRes" && oldProp !== value) {
-                    this.configureAOPass(this.configuration.logarithmicDepthBuffer);
+                    this.configureAOPass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
                     this.configureHalfResTargets();
-                    this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
+                    this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
                     this.setSize(this.width, this.height);
                 }
                 if (propName === "depthAwareUpsampling" && oldProp !== value) {
-                    this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
+                    this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
                 }
                 if (propName === "transparencyAware" && oldProp !== value) {
                     this.autoDetectTransparency = false;
@@ -159,7 +162,7 @@ class N8AOPass extends Pass {
         });
         this.beautyRenderTarget.depthTexture = new THREE.DepthTexture(this.width, this.height, THREE.UnsignedIntType);
         this.beautyRenderTarget.depthTexture.format = THREE.DepthFormat;
-        this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
+        this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
         this.configureSampleDependentPasses();
         this.configureHalfResTargets();
         this.detectTransparency();
@@ -169,12 +172,14 @@ class N8AOPass extends Pass {
         this.writeTargetInternal = new THREE.WebGLRenderTarget(this.width, this.height, {
             minFilter: THREE.LinearFilter,
             magFilter: THREE.LinearFilter,
-            depthBuffer: false
+            depthBuffer: false,
+            format: THREE.RGBAFormat
         });
         this.readTargetInternal = new THREE.WebGLRenderTarget(this.width, this.height, {
             minFilter: THREE.LinearFilter,
             magFilter: THREE.LinearFilter,
-            depthBuffer: false
+            depthBuffer: false,
+            format: THREE.RGBAFormat
         });
         this.accumulationRenderTarget = new THREE.WebGLRenderTarget(this.width, this.height, {
             minFilter: THREE.LinearFilter,
@@ -225,6 +230,7 @@ class N8AOPass extends Pass {
         this.bluenoise.magFilter = THREE.NearestFilter;
         this.bluenoise.needsUpdate = true;
         this.lastTime = 0;
+        this.timeRollingAverage = 0.99;
         this._r = new THREE.Vector2();
         this._c = new THREE.Color();
 
@@ -381,16 +387,19 @@ class N8AOPass extends Pass {
     }
     configureSampleDependentPasses() {
         this.firstFrame();
-        this.configureAOPass(this.configuration.logarithmicDepthBuffer);
-        this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
+        this.configureAOPass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+        this.configureDenoisePass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
     }
-    configureAOPass(logarithmicDepthBuffer = false) {
+    configureAOPass(logarithmicDepthBuffer = false, ortho = false) {
         this.firstFrame();
         this.samples = this.generateHemisphereSamples(this.configuration.aoSamples);
         const e = {...EffectShader };
         e.fragmentShader = e.fragmentShader.replace("16", this.configuration.aoSamples).replace("16.0", this.configuration.aoSamples + ".0");
         if (logarithmicDepthBuffer) {
             e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
+        }
+        if (ortho) {
+            e.fragmentShader = "#define ORTHO\n" + e.fragmentShader;
         }
         if (this.configuration.halfRes) {
             e.fragmentShader = "#define HALFRES\n" + e.fragmentShader;
@@ -402,13 +411,16 @@ class N8AOPass extends Pass {
             this.effectShaderQuad = new FullScreenTriangle(new THREE.ShaderMaterial(e));
         }
     }
-    configureDenoisePass(logarithmicDepthBuffer = false) {
+    configureDenoisePass(logarithmicDepthBuffer = false, ortho = false) {
         this.firstFrame();
         this.samplesDenoise = this.generateDenoiseSamples(this.configuration.denoiseSamples, 11);
         const p = {...PoissionBlur };
         p.fragmentShader = p.fragmentShader.replace("16", this.configuration.denoiseSamples);
         if (logarithmicDepthBuffer) {
             p.fragmentShader = "#define LOGDEPTH\n" + p.fragmentShader;
+        }
+        if (ortho) {
+            p.fragmentShader = "#define ORTHO\n" + p.fragmentShader;
         }
         if (this.poissonBlurQuad) {
             this.poissonBlurQuad.material.dispose();
@@ -417,11 +429,14 @@ class N8AOPass extends Pass {
             this.poissonBlurQuad = new FullScreenTriangle(new THREE.ShaderMaterial(p));
         }
     }
-    configureEffectCompositer(logarithmicDepthBuffer = false) {
+    configureEffectCompositer(logarithmicDepthBuffer = false, ortho = false) {
             this.firstFrame();
             const e = {...EffectCompositer };
             if (logarithmicDepthBuffer) {
                 e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
+            }
+            if (ortho) {
+                e.fragmentShader = "#define ORTHO\n" + e.fragmentShader;
             }
             if (this.configuration.halfRes && this.configuration.depthAwareUpsampling) {
                 e.fragmentShader = "#define HALFRES\n" + e.fragmentShader;
@@ -500,17 +515,19 @@ class N8AOPass extends Pass {
     render(renderer, writeBuffer, readBuffer, deltaTime, maskActive) {
             if (renderer.capabilities.logarithmicDepthBuffer !== this.configuration.logarithmicDepthBuffer) {
                 this.configuration.logarithmicDepthBuffer = renderer.capabilities.logarithmicDepthBuffer;
-                this.configureAOPass(this.configuration.logarithmicDepthBuffer);
-                this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
-                this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
+                this.configureAOPass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+                this.configureDenoisePass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+                this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
             }
             this.detectTransparency();
             this.camera.updateMatrixWorld();
             if (this.lastViewMatrix.equals(this.camera.matrixWorldInverse) && this.lastProjectionMatrix.equals(this.camera.projectionMatrix) && this.configuration.accumulate && !this.needsFrame) {
                 this.frame++;
             } else {
-                renderer.setRenderTarget(this.accumulationRenderTarget);
-                renderer.clear(true, true, true);
+                if (this.configuration.accumulate) {
+                    renderer.setRenderTarget(this.accumulationRenderTarget);
+                    renderer.clear(true, true, true);
+                }
                 this.frame = 0;
                 this.needsFrame = false;
             }
@@ -568,6 +585,7 @@ class N8AOPass extends Pass {
                 this.effectShaderQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
                 this.effectShaderQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
                 this.effectShaderQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new THREE.Vector3());
+                this.effectShaderQuad.material.uniforms['biasAdjustment'].value = new THREE.Vector2(this.configuration.biasOffset, this.configuration.biasMultiplier);
                 this.effectShaderQuad.material.uniforms['resolution'].value = (this.configuration.halfRes ? this._r.clone().multiplyScalar(1 / 2).floor() : this._r);
                 this.effectShaderQuad.material.uniforms['time'].value = performance.now() / 1000;
                 this.effectShaderQuad.material.uniforms['samples'].value = this.samples;
@@ -631,6 +649,7 @@ class N8AOPass extends Pass {
             }
             this.effectCompositerQuad.material.uniforms["sceneDiffuse"].value = this.beautyRenderTarget.texture;
             this.effectCompositerQuad.material.uniforms["sceneDepth"].value = this.beautyRenderTarget.depthTexture;
+            this.effectCompositerQuad.material.uniforms["aoTones"].value = this.configuration.aoTones;
             this.effectCompositerQuad.material.uniforms["near"].value = this.camera.near;
             this.effectCompositerQuad.material.uniforms["far"].value = this.camera.far;
             this.effectCompositerQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;

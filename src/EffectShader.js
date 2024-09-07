@@ -13,6 +13,7 @@ const EffectShader = {
         'viewMatrixInv': { value: new THREE.Matrix4() },
         'cameraPos': { value: new THREE.Vector3() },
         'resolution': { value: new THREE.Vector2() },
+        'biasAdjustment': { value: new THREE.Vector2() },
         'time': { value: 0.0 },
         'samples': { value: [] },
         'bluenoise': { value: null },
@@ -47,6 +48,7 @@ uniform mat4 viewMat;
 uniform mat4 projViewMat;
 uniform vec3 cameraPos;
 uniform vec2 resolution;
+uniform vec2 biasAdjustment;
 uniform float time;
 uniform vec3[SAMPLES] samples;
 uniform float radius;
@@ -71,11 +73,18 @@ uniform sampler2D bluenoise;
       float a = farZ / (farZ - nearZ);
       float b = farZ * nearZ / (nearZ - farZ);
       float linDepth = a + b / depth;
-      return ortho ? linearize_depth_ortho(
+      /*return ortho ? linearize_depth_ortho(
         linDepth,
         nearZ,
         farZ
-      ) :linearize_depth(linDepth, nearZ, farZ);
+      ) :linearize_depth(linDepth, nearZ, farZ);*/
+       #ifdef ORTHO
+
+       return linearize_depth_ortho(linDepth, nearZ, farZ);
+
+        #else
+        return linearize_depth(linDepth, nearZ, farZ);
+        #endif
     }
 
     vec3 getWorldPosLog(vec3 posS) {
@@ -165,10 +174,10 @@ void main() {
         }
         vec3 tangent = normalize(cross(helperVec, normal));
         vec3 bitangent = cross(normal, tangent);
-        mat3 tbn = mat3(tangent, bitangent, normal) *  makeRotationZ(noise.r * 2.0 * 3.1415962) ;
+        mediump mat3 tbn = mat3(tangent, bitangent, normal) *  makeRotationZ( noise.r * 3.1415962 * 2.0) ;
 
-      float occluded = 0.0;
-      float totalWeight = 0.0;
+      mediump float occluded = 0.0;
+      mediump float totalWeight = 0.0;
       float radiusToUse = screenSpaceRadius ? distance(
         worldPos,
         getWorldPos(depth, vUv +
@@ -181,46 +190,50 @@ void main() {
         0.1,
         distanceFalloffToUse * 0.1
       ) / near) * fwidth(distance(worldPos, cameraPos)) / radiusToUse;
-      float phi = 1.61803398875;
-      float offsetMove = 0.0;
-      float offsetMoveInv = 1.0 / FSAMPLES;
-      for(float i = 0.0; i < FSAMPLES; i++) {
-        vec3 sampleDirection = tbn * samples[int(i)];
+      bias = biasAdjustment.x + biasAdjustment.y * bias;
+      mediump float offsetMove = noise.g;
+      mediump float offsetMoveInv = 1.0 / FSAMPLES;
+      float farTimesNear = far * near;
+      float farMinusNear = far - near;
+      
+      for(int i = 0; i < SAMPLES; i++) {
+        mediump vec3 sampleDirection = tbn * samples[i];
 
-        float moveAmt = fract(noise.g + offsetMove);
+        float moveAmt = fract(offsetMove);
         offsetMove += offsetMoveInv;
-
         vec3 samplePos = worldPos + radiusToUse * moveAmt * sampleDirection;
         vec4 offset = projMat * vec4(samplePos, 1.0);
         offset.xyz /= offset.w;
         offset.xyz = offset.xyz * 0.5 + 0.5;
         
-        vec2 diff = gl_FragCoord.xy - floor(offset.xy * resolution);
-        // From Rabbid76's hbao
-        vec2 clipRangeCheck = step(vec2(0.0),offset.xy) * step(offset.xy, vec2(1.0));
+        if (all(greaterThan(offset.xyz * (1.0 - offset.xyz), vec3(0.0)))) {
           float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;
 
           #ifdef LOGDEPTH
-
           float distSample = linearize_depth_log(sampleDepth, near, far);
-
+      #else
+          #ifdef ORTHO
+              float distSample = near + farMinusNear * sampleDepth;
           #else
-
-          float distSample = ortho ? linearize_depth_ortho(sampleDepth, near, far) : linearize_depth(sampleDepth, near, far);
-
+              float distSample = (farTimesNear) / (far - sampleDepth * farMinusNear);
           #endif
-
-          float distWorld = ortho ? linearize_depth_ortho(offset.z, near, far) : linearize_depth(offset.z, near, far);
+      #endif
+      
+      #ifdef ORTHO
+          float distWorld = near + farMinusNear * sampleDepth;
+      #else
+          float distWorld = (farTimesNear) / (far - offset.z * farMinusNear);
+      #endif
           
-          float rangeCheck = distSample == distWorld ? 0.0 : smoothstep(0.0, 1.0, distanceFalloffToUse / (abs(distSample - distWorld)));
-          
-          float sampleValid = (clipRangeCheck.x * clipRangeCheck.y);
-          occluded += rangeCheck * float(sampleDepth != depth) * float(distSample + bias < distWorld) * step(
+          mediump float rangeCheck = smoothstep(0.0, 1.0, distanceFalloffToUse / (abs(distSample - distWorld)));
+          vec2 diff = gl_FragCoord.xy - floor(offset.xy * resolution);
+          occluded += rangeCheck * float(distSample != distWorld) * float(sampleDepth != depth) * step(distSample + bias, distWorld) * step(
             1.0,
             dot(diff, diff)
-          ) * sampleValid;
+          );
           
-          totalWeight += sampleValid;
+          totalWeight ++;
+        }
       }
       float occ = clamp(1.0 - occluded / (totalWeight == 0.0 ? 1.0 : totalWeight), 0.0, 1.0);
       gl_FragColor = vec4(occ, 0.5 + 0.5 * normal);

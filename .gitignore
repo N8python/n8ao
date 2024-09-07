@@ -1,5 +1,6 @@
 node_modules
 .parcel-cache
+example_webgpu
 .vscode
 .idea
 *.DS_Store

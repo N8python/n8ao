@@ -262,6 +262,7 @@ n8aopass.configuration.accumulate = true;
 For the best results, `denoiseRadius` should be set to 0 and `denoiseSamples` should be set to 1. This will ensure that the AO effect is not blurred, and that the accumulation is purely temporal.
 
 The accumulation effect works best in scenes with no motion - as it does not calculate motion vectors and will only work with the camera still. If the camera is moving, the accumulation effect will be disabled automatically. But if an object is moving, N8AO won't be able to pick up on that and the object's ambient occlusion will become blurred.
+
 # Stencil
 
 N8AOPass supports stencil buffers, but you must enable them via `configuration.stencil`:
@@ -290,11 +291,27 @@ const n8aopass = new N8AOPostPass(
 composer.addPass(n8aopass);
 ```
 
+# Bias Adjustment
+
+The bias calculated by N8AO can sometimes be wrong and produce artifacts - control it with `configuration.biasOffset` and `configuration.biasMultiplier`.
+
+In-shader, the bias will be calculated as `bias = biasOffset + biasMultiplier * bias`, where `bias` is calculated using heuristic.
+
+Only adjust these values if you are seeing artifacts in your AO effect and you know what you are doing.
+
+# AO Tones
+
+The property `configuration.aoTones` controls the number of tones the AO effect can have. Can be used for toon shading or bevel effects - default is `0`, which means the AO effect is continuous. Any value above `0` will cause the AO effect to be quantized into that many tones.
+
 # Compatibility
 
-`N8AOPass` is compatible with all modern browsers that support WebGL 2.0 (WebGL 1 is not supported), but using three.js version r152 or later is recommended. 
+`N8AOPass` is compatible with all modern browsers that support WebGL 2.0 (WebGL 1 is not supported), but using three.js version r161 or later is recommended. 
 
 The pass is self-contained, and renders the scene automatically. The render target containing the scene texture (and depth) is available as `n8aopass.beautyRenderTarget` if you wish to use it for other purposes (for instance, using a depth buffer later in the rendering pipeline). All pass logic is self-contained and the pass should not be hard to modify if necessary.
+
+# WebGPU
+
+N8AO is not yet compatible with WebGPU, but will be in the future - 2.0 perhaps. Stay tuned :D.
 
 # Limitations
 

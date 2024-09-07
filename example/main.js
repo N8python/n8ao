@@ -97,9 +97,11 @@ async function main() {
     scene.add(sponza);
     const effectController = {
         aoSamples: 16.0,
+        aoRadius: 5.0,
+        aoTones: 0.0,
         denoiseSamples: 8.0,
         denoiseRadius: 12.0,
-        aoRadius: 5.0,
+        denoiseIterations: 2.0,
         distanceFalloff: 1.0,
         screenSpaceRadius: false,
         halfRes: false,
@@ -110,13 +112,15 @@ async function main() {
         color: [0, 0, 0],
         colorMultiply: true,
         stencil: true,
-        accumulate: false
+        accumulate: false,
     };
     const gui = new GUI();
     gui.add(effectController, "aoSamples", 1.0, 64.0, 1.0);
+    const aor = gui.add(effectController, "aoRadius", 1.0, 10.0, 0.01);
+    gui.add(effectController, "aoTones", 0.0, 8.0, 1.0);
     gui.add(effectController, "denoiseSamples", 1.0, 64.0, 1.0);
     gui.add(effectController, "denoiseRadius", 0.0, 24.0, 0.01);
-    const aor = gui.add(effectController, "aoRadius", 1.0, 10.0, 0.01);
+    gui.add(effectController, "denoiseIterations", 1.0, 10.0, 1.0);
     const df = gui.add(effectController, "distanceFalloff", 0.0, 10.0, 0.01);
     gui.add(effectController, "screenSpaceRadius").onChange((value) => {
         if (value) {
@@ -200,12 +204,14 @@ async function main() {
             lightPos4d
         );
         n8aopass.configuration.aoRadius = effectController.aoRadius;
+        n8aopass.configuration.aoSamples = effectController.aoSamples;
+        n8aopass.configuration.aoTones = effectController.aoTones;
         n8aopass.configuration.distanceFalloff = effectController.distanceFalloff;
         n8aopass.configuration.transparencyAware = effectController.transparencyAware;
         n8aopass.configuration.intensity = effectController.intensity;
-        n8aopass.configuration.aoSamples = effectController.aoSamples;
         n8aopass.configuration.denoiseRadius = effectController.denoiseRadius;
         n8aopass.configuration.denoiseSamples = effectController.denoiseSamples;
+        n8aopass.configuration.denoiseIterations = effectController.denoiseIterations;
         n8aopass.configuration.stencil = effectController.stencil;
         n8aopass.configuration.renderMode = ["Combined", "AO", "No AO", "Split", "Split AO"].indexOf(effectController.renderMode);
         n8aopass.configuration.color = new THREE.Color(effectController.color[0], effectController.color[1], effectController.color[2]);

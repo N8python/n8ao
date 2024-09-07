@@ -34,7 +34,8 @@ const EffectCompositer = {
         'fogDensity': { value: 0.0 },
         'fogNear': { value: Infinity },
         'fogFar': { value: Infinity },
-        'colorMultiply': { value: true }
+        'colorMultiply': { value: true },
+        'aoTones': { value: 0.0 }
 
     },
     depthWrite: false,
@@ -63,6 +64,7 @@ const EffectCompositer = {
     uniform float renderMode;
     uniform float near;
     uniform float far;
+    uniform float aoTones;
     uniform bool gammaCorrection;
     uniform bool logDepth;
     uniform bool ortho;
@@ -214,6 +216,9 @@ const EffectCompositer = {
         #endif
      
         float finalAo = pow(texel.r, intensity);
+        if (aoTones > 0.0) {
+            finalAo = ceil(finalAo * aoTones) / aoTones;
+        }
         float fogFactor;
         float fogDepth = distance(
             cameraPos,

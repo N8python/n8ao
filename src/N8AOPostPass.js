@@ -428,7 +428,7 @@ class N8AOPostPass extends Pass {
             p.fragmentShader = "#define LOGDEPTH\n" + p.fragmentShader;
         }
         if (ortho) {
-            e.fragmentShader = "#define ORTHO\n" + e.fragmentShader;
+            p.fragmentShader = "#define ORTHO\n" + p.fragmentShader;
         }
         if (this.poissonBlurQuad) {
             this.poissonBlurQuad.material.dispose();

@@ -220,7 +220,7 @@ void main() {
       #endif
       
       #ifdef ORTHO
-          float distWorld = near + farMinusNear * sampleDepth;
+          float distWorld = near + offset.z * farMinusNear;
       #else
           float distWorld = (farTimesNear) / (far - offset.z * farMinusNear);
       #endif

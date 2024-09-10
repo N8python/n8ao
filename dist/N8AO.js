@@ -310,7 +310,7 @@ void main() {
       #endif
       
       #ifdef ORTHO
-          float distWorld = near + farMinusNear * sampleDepth;
+          float distWorld = near + offset.z * farMinusNear;
       #else
           float distWorld = (farTimesNear) / (far - offset.z * farMinusNear);
       #endif
@@ -1357,17 +1357,17 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
     configureAOPass(logarithmicDepthBuffer = false, ortho = false) {
         this.firstFrame();
         this.samples = this.generateHemisphereSamples(this.configuration.aoSamples);
-        const e1 = {
+        const e = {
             ...(0, $1ed45968c1160c3c$export$c9b263b9a17dffd7)
         };
-        e1.fragmentShader = e1.fragmentShader.replace("16", this.configuration.aoSamples).replace("16.0", this.configuration.aoSamples + ".0");
-        if (logarithmicDepthBuffer) e1.fragmentShader = "#define LOGDEPTH\n" + e1.fragmentShader;
-        if (ortho) e1.fragmentShader = "#define ORTHO\n" + e1.fragmentShader;
-        if (this.configuration.halfRes) e1.fragmentShader = "#define HALFRES\n" + e1.fragmentShader;
+        e.fragmentShader = e.fragmentShader.replace("16", this.configuration.aoSamples).replace("16.0", this.configuration.aoSamples + ".0");
+        if (logarithmicDepthBuffer) e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
+        if (ortho) e.fragmentShader = "#define ORTHO\n" + e.fragmentShader;
+        if (this.configuration.halfRes) e.fragmentShader = "#define HALFRES\n" + e.fragmentShader;
         if (this.effectShaderQuad) {
             this.effectShaderQuad.material.dispose();
-            this.effectShaderQuad.material = new $5Whe3$ShaderMaterial(e1);
-        } else this.effectShaderQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(e1));
+            this.effectShaderQuad.material = new $5Whe3$ShaderMaterial(e);
+        } else this.effectShaderQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(e));
     }
     configureDenoisePass(logarithmicDepthBuffer = false, ortho = false) {
         this.firstFrame();
@@ -1377,7 +1377,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         };
         p.fragmentShader = p.fragmentShader.replace("16", this.configuration.denoiseSamples);
         if (logarithmicDepthBuffer) p.fragmentShader = "#define LOGDEPTH\n" + p.fragmentShader;
-        if (ortho) e.fragmentShader = "#define ORTHO\n" + e.fragmentShader;
+        if (ortho) p.fragmentShader = "#define ORTHO\n" + p.fragmentShader;
         if (this.poissonBlurQuad) {
             this.poissonBlurQuad.material.dispose();
             this.poissonBlurQuad.material = new $5Whe3$ShaderMaterial(p);
@@ -1385,16 +1385,16 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
     }
     configureEffectCompositer(logarithmicDepthBuffer = false, ortho = false) {
         this.firstFrame();
-        const e1 = {
+        const e = {
             ...(0, $12b21d24d1192a04$export$a815acccbd2c9a49)
         };
-        if (logarithmicDepthBuffer) e1.fragmentShader = "#define LOGDEPTH\n" + e1.fragmentShader;
-        if (ortho) e1.fragmentShader = "#define ORTHO\n" + e1.fragmentShader;
-        if (this.configuration.halfRes && this.configuration.depthAwareUpsampling) e1.fragmentShader = "#define HALFRES\n" + e1.fragmentShader;
+        if (logarithmicDepthBuffer) e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
+        if (ortho) e.fragmentShader = "#define ORTHO\n" + e.fragmentShader;
+        if (this.configuration.halfRes && this.configuration.depthAwareUpsampling) e.fragmentShader = "#define HALFRES\n" + e.fragmentShader;
         if (this.effectCompositerQuad) {
             this.effectCompositerQuad.material.dispose();
-            this.effectCompositerQuad.material = new $5Whe3$ShaderMaterial(e1);
-        } else this.effectCompositerQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(e1));
+            this.effectCompositerQuad.material = new $5Whe3$ShaderMaterial(e);
+        } else this.effectCompositerQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(e));
     }
     /**
          * 

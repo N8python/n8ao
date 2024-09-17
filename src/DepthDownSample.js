@@ -9,6 +9,7 @@ const DepthDownSample = {
         'viewMatrixInv': { value: new THREE.Matrix4() },
         'projectionMatrixInv': { value: new THREE.Matrix4() },
         'logDepth': { value: false },
+        'ortho': { value: false }
     },
     depthWrite: false,
     depthTest: false,
@@ -25,6 +26,7 @@ const DepthDownSample = {
     uniform float near;
     uniform float far;
     uniform bool logDepth;
+    uniform bool ortho;
     uniform mat4 viewMatrixInv;
     uniform mat4 projectionMatrixInv;
     varying vec2 vUv;
@@ -43,7 +45,7 @@ const DepthDownSample = {
         return wpos.xyz / wpos.w;
       }
       vec3 getWorldPos(float depth, vec2 coord) {
-        if (logDepth) {
+        if (logDepth && !ortho) {
           return getWorldPosLog(vec3(coord, depth));
         }
         float z = depth * 2.0 - 1.0;

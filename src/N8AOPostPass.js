@@ -593,6 +593,7 @@ class N8AOPostPass extends Pass {
                     this.depthDownsampleQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
                     this.depthDownsampleQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
                     this.depthDownsampleQuad.material.uniforms["logDepth"].value = this.configuration.logarithmicDepthBuffer;
+                    this.depthDownsampleQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
                     this.depthDownsampleQuad.render(renderer);
                 }
                 this.effectShaderQuad.material.uniforms["sceneDiffuse"].value = inputBuffer.texture;

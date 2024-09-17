@@ -114,7 +114,9 @@ const EffectCompositer = {
       vec3 getWorldPos(float depth, vec2 coord) {
        // if (logDepth) {
         #ifdef LOGDEPTH
-          return getWorldPosLog(vec3(coord, depth));
+          #ifndef ORTHO
+            return getWorldPosLog(vec3(coord, depth));
+          #endif
         #endif
       //  }
         float z = depth * 2.0 - 1.0;

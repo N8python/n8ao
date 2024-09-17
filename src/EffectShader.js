@@ -80,7 +80,7 @@ uniform sampler2D bluenoise;
       ) :linearize_depth(linDepth, nearZ, farZ);*/
        #ifdef ORTHO
 
-       return linearize_depth_ortho(linDepth, nearZ, farZ);
+       return linearize_depth_ortho(d, nearZ, farZ);
 
         #else
         return linearize_depth(linDepth, nearZ, farZ);
@@ -102,7 +102,9 @@ uniform sampler2D bluenoise;
     }
     vec3 getWorldPos(float depth, vec2 coord) {
       #ifdef LOGDEPTH
-        return getWorldPosLog(vec3(coord, depth));
+        #ifndef ORTHO
+          return getWorldPosLog(vec3(coord, depth));
+        #endif
       #endif
       float z = depth * 2.0 - 1.0;
       vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
@@ -209,11 +211,20 @@ void main() {
         if (all(greaterThan(offset.xyz * (1.0 - offset.xyz), vec3(0.0)))) {
           float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;
 
-          #ifdef LOGDEPTH
+          /*#ifdef LOGDEPTH
           float distSample = linearize_depth_log(sampleDepth, near, far);
       #else
           #ifdef ORTHO
               float distSample = near + farMinusNear * sampleDepth;
+          #else
+              float distSample = (farTimesNear) / (far - sampleDepth * farMinusNear);
+          #endif
+      #endif*/
+      #ifdef ORTHO
+          float distSample = near + sampleDepth * farMinusNear;
+      #else
+          #ifdef LOGDEPTH
+              float distSample = linearize_depth_log(sampleDepth, near, far);
           #else
               float distSample = (farTimesNear) / (far - sampleDepth * farMinusNear);
           #endif

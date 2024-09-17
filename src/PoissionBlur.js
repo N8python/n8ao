@@ -82,7 +82,9 @@ const PoissionBlur = {
    }
     vec3 getWorldPos(float depth, vec2 coord) {
      #ifdef LOGDEPTH
+      #ifndef ORTHO
           return getWorldPosLog(vec3(coord, depth));
+      #endif
      #endif
         
         float z = depth * 2.0 - 1.0;

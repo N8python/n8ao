@@ -170,7 +170,7 @@ uniform sampler2D bluenoise;
       ) :linearize_depth(linDepth, nearZ, farZ);*/
        #ifdef ORTHO
 
-       return linearize_depth_ortho(linDepth, nearZ, farZ);
+       return linearize_depth_ortho(d, nearZ, farZ);
 
         #else
         return linearize_depth(linDepth, nearZ, farZ);
@@ -192,7 +192,9 @@ uniform sampler2D bluenoise;
     }
     vec3 getWorldPos(float depth, vec2 coord) {
       #ifdef LOGDEPTH
-        return getWorldPosLog(vec3(coord, depth));
+        #ifndef ORTHO
+          return getWorldPosLog(vec3(coord, depth));
+        #endif
       #endif
       float z = depth * 2.0 - 1.0;
       vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
@@ -299,11 +301,20 @@ void main() {
         if (all(greaterThan(offset.xyz * (1.0 - offset.xyz), vec3(0.0)))) {
           float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;
 
-          #ifdef LOGDEPTH
+          /*#ifdef LOGDEPTH
           float distSample = linearize_depth_log(sampleDepth, near, far);
       #else
           #ifdef ORTHO
               float distSample = near + farMinusNear * sampleDepth;
+          #else
+              float distSample = (farTimesNear) / (far - sampleDepth * farMinusNear);
+          #endif
+      #endif*/
+      #ifdef ORTHO
+          float distSample = near + sampleDepth * farMinusNear;
+      #else
+          #ifdef LOGDEPTH
+              float distSample = linearize_depth_log(sampleDepth, near, far);
           #else
               float distSample = (farTimesNear) / (far - sampleDepth * farMinusNear);
           #endif
@@ -512,7 +523,9 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
       vec3 getWorldPos(float depth, vec2 coord) {
        // if (logDepth) {
         #ifdef LOGDEPTH
-          return getWorldPosLog(vec3(coord, depth));
+          #ifndef ORTHO
+            return getWorldPosLog(vec3(coord, depth));
+          #endif
         #endif
       //  }
         float z = depth * 2.0 - 1.0;
@@ -797,7 +810,9 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
    }
     vec3 getWorldPos(float depth, vec2 coord) {
      #ifdef LOGDEPTH
+      #ifndef ORTHO
           return getWorldPosLog(vec3(coord, depth));
+      #endif
      #endif
         
         float z = depth * 2.0 - 1.0;
@@ -899,6 +914,9 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
         },
         "logDepth": {
             value: false
+        },
+        "ortho": {
+            value: false
         }
     },
     depthWrite: false,
@@ -915,6 +933,7 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
     uniform float near;
     uniform float far;
     uniform bool logDepth;
+    uniform bool ortho;
     uniform mat4 viewMatrixInv;
     uniform mat4 projectionMatrixInv;
     varying vec2 vUv;
@@ -933,7 +952,7 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
         return wpos.xyz / wpos.w;
       }
       vec3 getWorldPos(float depth, vec2 coord) {
-        if (logDepth) {
+        if (logDepth && !ortho) {
           return getWorldPosLog(vec3(coord, depth));
         }
         float z = depth * 2.0 - 1.0;
@@ -1513,6 +1532,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
                 this.depthDownsampleQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
                 this.depthDownsampleQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
                 this.depthDownsampleQuad.material.uniforms["logDepth"].value = this.configuration.logarithmicDepthBuffer;
+                this.depthDownsampleQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
                 this.depthDownsampleQuad.render(renderer);
             }
             this.effectShaderQuad.material.uniforms["sceneDiffuse"].value = inputBuffer.texture;
@@ -2164,6 +2184,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
                 this.depthDownsampleQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
                 this.depthDownsampleQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
                 this.depthDownsampleQuad.material.uniforms["logDepth"].value = this.configuration.logarithmicDepthBuffer;
+                this.depthDownsampleQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
                 this.depthDownsampleQuad.render(renderer);
             }
             this.effectShaderQuad.material.uniforms["sceneDiffuse"].value = this.beautyRenderTarget.texture;

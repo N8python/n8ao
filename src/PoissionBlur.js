@@ -116,13 +116,13 @@ const PoissionBlur = {
         float size = radius;
         float angle;
         if (index == 0.0) {
-             angle = texture2D(blueNoise, gl_FragCoord.xy / 128.0).x * PI2;
-        } else if (index == 1.0) {
-             angle = texture2D(blueNoise, gl_FragCoord.xy / 128.0).y * PI2;
-        } else if (index == 2.0) {
-             angle = texture2D(blueNoise, gl_FragCoord.xy / 128.0).z * PI2;
-        } else {
              angle = texture2D(blueNoise, gl_FragCoord.xy / 128.0).w * PI2;
+        } else if (index == 1.0) {
+             angle = texture2D(blueNoise, gl_FragCoord.xy / 128.0).z * PI2;
+        } else if (index == 2.0) {
+             angle = texture2D(blueNoise, gl_FragCoord.xy / 128.0).y * PI2;
+        } else {
+             angle = texture2D(blueNoise, gl_FragCoord.xy / 128.0).x * PI2;
         }
 
         mat2 rotationMatrix = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));

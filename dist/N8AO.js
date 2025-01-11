@@ -1,4 +1,4 @@
-import {Color as $5Whe3$Color, WebGLRenderTarget as $5Whe3$WebGLRenderTarget, LinearFilter as $5Whe3$LinearFilter, NearestFilter as $5Whe3$NearestFilter, HalfFloatType as $5Whe3$HalfFloatType, RGBAFormat as $5Whe3$RGBAFormat, DepthTexture as $5Whe3$DepthTexture, UnsignedInt248Type as $5Whe3$UnsignedInt248Type, UnsignedIntType as $5Whe3$UnsignedIntType, DepthStencilFormat as $5Whe3$DepthStencilFormat, DepthFormat as $5Whe3$DepthFormat, Matrix4 as $5Whe3$Matrix4, DataTexture as $5Whe3$DataTexture, ShaderMaterial as $5Whe3$ShaderMaterial, NoColorSpace as $5Whe3$NoColorSpace, RepeatWrapping as $5Whe3$RepeatWrapping, Vector2 as $5Whe3$Vector2, REVISION as $5Whe3$REVISION, WebGLMultipleRenderTargets as $5Whe3$WebGLMultipleRenderTargets, RedFormat as $5Whe3$RedFormat, FloatType as $5Whe3$FloatType, Vector3 as $5Whe3$Vector3, BufferGeometry as $5Whe3$BufferGeometry, BufferAttribute as $5Whe3$BufferAttribute, Sphere as $5Whe3$Sphere, OrthographicCamera as $5Whe3$OrthographicCamera, Mesh as $5Whe3$Mesh} from "three";
+import {Color as $5Whe3$Color, WebGLRenderTarget as $5Whe3$WebGLRenderTarget, LinearFilter as $5Whe3$LinearFilter, NearestFilter as $5Whe3$NearestFilter, HalfFloatType as $5Whe3$HalfFloatType, RGBAFormat as $5Whe3$RGBAFormat, DepthTexture as $5Whe3$DepthTexture, UnsignedInt248Type as $5Whe3$UnsignedInt248Type, UnsignedIntType as $5Whe3$UnsignedIntType, DepthStencilFormat as $5Whe3$DepthStencilFormat, DepthFormat as $5Whe3$DepthFormat, Matrix4 as $5Whe3$Matrix4, DataTexture as $5Whe3$DataTexture, ShaderMaterial as $5Whe3$ShaderMaterial, NoColorSpace as $5Whe3$NoColorSpace, RepeatWrapping as $5Whe3$RepeatWrapping, Vector2 as $5Whe3$Vector2, REVISION as $5Whe3$REVISION, RedFormat as $5Whe3$RedFormat, FloatType as $5Whe3$FloatType, Vector3 as $5Whe3$Vector3, BufferGeometry as $5Whe3$BufferGeometry, BufferAttribute as $5Whe3$BufferAttribute, Sphere as $5Whe3$Sphere, OrthographicCamera as $5Whe3$OrthographicCamera, Mesh as $5Whe3$Mesh} from "three";
 import {Pass as $5Whe3$Pass} from "three/examples/jsm/postprocessing/Pass.js";
 import {Pass as $5Whe3$Pass1} from "postprocessing";
 
@@ -1040,6 +1040,66 @@ var $06269ad78f3c5fdf$export$2e2bcd8739ae039 = `5L7pP4UXrOIr/VZ1G3f6p89FIWU7lqc7
 
 
 
+
+const $ff9437d9c7577f11$var$version = /* @__PURE__ */ (()=>parseInt($5Whe3$REVISION.replace(/\D+/g, "")))();
+const $ff9437d9c7577f11$export$156f6a58f569aa09 = $ff9437d9c7577f11$var$version >= 162 ? class extends $5Whe3$WebGLRenderTarget {
+    constructor(width = 1, height = 1, count = 1, options = {}){
+        super(width, height, {
+            ...options,
+            count: count
+        });
+        this.isWebGLMultipleRenderTargets = true;
+    }
+    get texture() {
+        return this.textures;
+    }
+} : class extends $5Whe3$WebGLRenderTarget {
+    constructor(width = 1, height = 1, count = 1, options = {}){
+        super(width, height, options);
+        this.isWebGLMultipleRenderTargets = true;
+        const texture = this.texture;
+        this.texture = [];
+        for(let i = 0; i < count; i++){
+            this.texture[i] = texture.clone();
+            this.texture[i].isRenderTargetTexture = true;
+        }
+    }
+    setSize(width, height, depth = 1) {
+        if (this.width !== width || this.height !== height || this.depth !== depth) {
+            this.width = width;
+            this.height = height;
+            this.depth = depth;
+            for(let i = 0, il = this.texture.length; i < il; i++){
+                this.texture[i].image.width = width;
+                this.texture[i].image.height = height;
+                this.texture[i].image.depth = depth;
+            }
+            this.dispose();
+        }
+        this.viewport.set(0, 0, width, height);
+        this.scissor.set(0, 0, width, height);
+    }
+    copy(source) {
+        this.dispose();
+        this.width = source.width;
+        this.height = source.height;
+        this.depth = source.depth;
+        this.scissor.copy(source.scissor);
+        this.scissorTest = source.scissorTest;
+        this.viewport.copy(source.viewport);
+        this.depthBuffer = source.depthBuffer;
+        this.stencilBuffer = source.stencilBuffer;
+        if (source.depthTexture !== null) this.depthTexture = source.depthTexture.clone();
+        this.texture.length = 0;
+        for(let i = 0, il = source.texture.length; i < il; i++){
+            this.texture[i] = source.texture[i].clone();
+            this.texture[i].isRenderTargetTexture = true;
+        }
+        return this;
+    }
+};
+
+
 const $87431ee93b037844$var$bluenoiseBits = Uint8Array.from(atob((0, $06269ad78f3c5fdf$export$2e2bcd8739ae039)), (c)=>c.charCodeAt(0));
 /**
  * 
@@ -1245,9 +1305,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
     configureHalfResTargets() {
         this.firstFrame();
         if (this.configuration.halfRes) {
-            this.depthDownsampleTarget = $5Whe3$REVISION > 161 ? new $5Whe3$WebGLRenderTarget(this.width / 2, this.height / 2, {
-                count: 2
-            }) : new $5Whe3$WebGLMultipleRenderTargets(this.width / 2, this.height / 2, 2);
+            this.depthDownsampleTarget = new (0, $ff9437d9c7577f11$export$156f6a58f569aa09)(this.width / 2, this.height / 2, 2);
             if ($5Whe3$REVISION <= 161) this.depthDownsampleTarget.textures = this.depthDownsampleTarget.texture;
             this.depthDownsampleTarget.textures[0].format = $5Whe3$RedFormat;
             this.depthDownsampleTarget.textures[0].type = $5Whe3$FloatType;
@@ -1703,6 +1761,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
 
 
 
+
 const $05f6997e4b65da14$var$bluenoiseBits = Uint8Array.from(atob((0, $06269ad78f3c5fdf$export$2e2bcd8739ae039)), (c)=>c.charCodeAt(0));
 /**
  * 
@@ -1904,9 +1963,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
     configureHalfResTargets() {
         this.firstFrame();
         if (this.configuration.halfRes) {
-            this.depthDownsampleTarget = $5Whe3$REVISION > 161 ? new $5Whe3$WebGLRenderTarget(this.width / 2, this.height / 2, {
-                count: 2
-            }) : new $5Whe3$WebGLMultipleRenderTargets(this.width / 2, this.height / 2, 2);
+            this.depthDownsampleTarget = new (0, $ff9437d9c7577f11$export$156f6a58f569aa09)(this.width / 2, this.height / 2, 2);
             if ($5Whe3$REVISION <= 161) this.depthDownsampleTarget.textures = this.depthDownsampleTarget.texture;
             this.depthDownsampleTarget.textures[0].format = $5Whe3$RedFormat;
             this.depthDownsampleTarget.textures[0].type = $5Whe3$FloatType;

@@ -7,6 +7,7 @@ import { PoissionBlur } from './PoissionBlur.js';
 import { DepthDownSample } from "./DepthDownSample.js";
 import BlueNoise from './BlueNoise.js';
 import { N8AOPass } from './N8AOPass.js';
+import { WebGLMultipleRenderTargetsCompat } from './compat.js';
 const bluenoiseBits = Uint8Array.from(atob(BlueNoise), c => c.charCodeAt(0));
 
 /**
@@ -245,16 +246,12 @@ class N8AOPostPass extends Pass {
         this.firstFrame();
 
         if (this.configuration.halfRes) {
-            this.depthDownsampleTarget = THREE.REVISION > 161 ? new THREE.WebGLRenderTarget(
-                this.width / 2,
-                this.height / 2, {
-                    count: 2
-                }
-            ) : new THREE.WebGLMultipleRenderTargets(
+            this.depthDownsampleTarget = new WebGLMultipleRenderTargetsCompat(
                 this.width / 2,
                 this.height / 2,
                 2
             );
+
             if (THREE.REVISION <= 161) {
                 this.depthDownsampleTarget.textures = this.depthDownsampleTarget.texture;
             }

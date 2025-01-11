@@ -16,6 +16,19 @@ const __dirname = dirname(__filename);
 // Serve static files from the 'public' directory (update the path as necessary)
 app.use(express.static(__dirname));
 
+app.get('/', (_req, res) => {
+  res.status(200).send(`
+<!DOCTYPE html>
+<body>
+    <h1>N8AO</h1>
+    <ul>
+        <li><a href="/example">Example</a></li>
+        <li><a href="/example_postprocessing">Example Postprocessing</a></li>
+    </ul>
+</body>
+`);
+});
+
 const port = process.env.PORT || 8080;
 
 app.listen(port, () => {

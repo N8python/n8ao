@@ -1,20 +1,19 @@
 import * as THREE from 'three';
 
-const _geometry = new THREE.BufferGeometry();
-_geometry.setAttribute(
-  'position',
-  new THREE.BufferAttribute(new Float32Array([-1, -1, 3, -1, -1, 3]), 2)
-);
-_geometry.setAttribute(
-  'uv',
-  new THREE.BufferAttribute(new Float32Array([0, 0, 2, 0, 0, 2]), 2)
-);
+class FullScreenTriangleGeometry extends THREE.BufferGeometry {
+  boundingSphere = new THREE.Sphere();
 
-// Recent three.js versions break setDrawRange or itemSize <3 position
-_geometry.boundingSphere = new THREE.Sphere();
-_geometry.computeBoundingSphere = function() {};
+  constructor() {
+    super()
+    this.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1, -1, 3, -1, -1, 3]), 2));
+    this.setAttribute('uv', new THREE.BufferAttribute(new Float32Array([0, 0, 2, 0, 0, 2]), 2));
+  }
 
-const _camera = new THREE.OrthographicCamera()
+  computeBoundingSphere() {}
+}
+
+const _geometry = /* @__PURE__ */ new FullScreenTriangleGeometry();
+const _camera = /* @__PURE__ */ new THREE.OrthographicCamera();
 
 export class FullScreenTriangle {
   constructor(material) {

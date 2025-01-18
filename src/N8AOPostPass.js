@@ -5,10 +5,9 @@ import { EffectShader } from './EffectShader.js';
 import { EffectCompositer } from './EffectCompositer.js';
 import { PoissionBlur } from './PoissionBlur.js';
 import { DepthDownSample } from "./DepthDownSample.js";
-import BlueNoise from './BlueNoise.js';
+import bluenoiseBits from './BlueNoise.js';
 import { N8AOPass } from './N8AOPass.js';
 import { WebGLMultipleRenderTargetsCompat } from './compat.js';
-const bluenoiseBits = Uint8Array.from(atob(BlueNoise), c => c.charCodeAt(0));
 
 /**
  * 

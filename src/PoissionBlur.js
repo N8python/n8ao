@@ -151,12 +151,10 @@ const PoissionBlur = {
         if (count > 0.0) {
           occlusion /= count;
         }
-        #ifdef LOGDEPTH
-          occlusion = clamp(occlusion, 0.0, 1.0);
-          if (occlusion == 0.0) {
-            occlusion = 1.0;
-          }
-        #endif
+        occlusion = clamp(occlusion, 0.0, 1.0);
+        if (occlusion == 0.0) {
+          occlusion = 1.0;
+        }
         gl_FragColor = vec4(occlusion, 0.5 + 0.5 * normal);
     }
     `

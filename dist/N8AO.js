@@ -108,9 +108,6 @@ const $1ed45968c1160c3c$export$c9b263b9a17dffd7 = {
         "far": {
             value: 1000.0
         },
-        "logDepth": {
-            value: false
-        },
         "ortho": {
             value: false
         },
@@ -150,7 +147,6 @@ uniform float distanceFalloff;
 uniform float near;
 uniform float far;
 uniform float frame;
-uniform bool logDepth;
 uniform bool ortho;
 uniform bool screenSpaceRadius;
 uniform sampler2D bluenoise;
@@ -211,6 +207,17 @@ uniform sampler2D bluenoise;
 
   vec3 computeNormal(vec3 worldPos, vec2 vUv) {
     ivec2 p = ivec2(vUv * resolution);
+    #ifdef REVERSEDEPTH
+    float c0 = 1.0 - texelFetch(sceneDepth, p, 0).x;
+    float l2 = 1.0 - texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
+    float l1 = 1.0 - texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
+    float r1 = 1.0 - texelFetch(sceneDepth, p + ivec2(1, 0), 0).x;
+    float r2 = 1.0 - texelFetch(sceneDepth, p + ivec2(2, 0), 0).x;
+    float b2 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 2), 0).x;
+    float b1 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
+    float t1 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
+    float t2 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
+    #else
     float c0 = texelFetch(sceneDepth, p, 0).x;
     float l2 = texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
     float l1 = texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
@@ -220,6 +227,7 @@ uniform sampler2D bluenoise;
     float b1 = texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
     float t1 = texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
     float t2 = texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
+    #endif
 
     float dl = abs((2.0 * l1 - l2) - c0);
     float dr = abs((2.0 * r1 - r2) - c0);
@@ -246,7 +254,11 @@ mat3 makeRotationZ(float theta) {
 
 void main() {
       vec4 diffuse = texture2D(sceneDiffuse, vUv);
+      #ifdef REVERSEDEPTH
+      float depth = 1.0 - texture2D(sceneDepth, vUv).x;
+      #else
       float depth = texture2D(sceneDepth, vUv).x;
+      #endif
       if (depth == 1.0) {
         gl_FragColor = vec4(vec3(1.0), 1.0);
         return;
@@ -303,7 +315,11 @@ void main() {
         offset.xyz = offset.xyz * 0.5 + 0.5;
         
         if (all(greaterThan(offset.xyz * (1.0 - offset.xyz), vec3(0.0)))) {
+          #ifdef REVERSEDEPTH
+          float sampleDepth = 1.0 - textureLod(sceneDepth, offset.xy, 0.0).x;
+          #else
           float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;
+          #endif
 
           /*#ifdef LOGDEPTH
           float distSample = linearize_depth_log(sampleDepth, near, far);
@@ -409,9 +425,6 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
         "gammaCorrection": {
             value: false
         },
-        "logDepth": {
-            value: false
-        },
         "ortho": {
             value: false
         },
@@ -479,7 +492,6 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
     uniform float far;
     uniform float aoTones;
     uniform bool gammaCorrection;
-    uniform bool logDepth;
     uniform bool ortho;
     uniform bool screenSpaceRadius;
     uniform bool fog;
@@ -525,7 +537,6 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
         return wpos.xyz / wpos.w;
       }
       vec3 getWorldPos(float depth, vec2 coord) {
-       // if (logDepth) {
         #ifdef LOGDEPTH
           #ifndef ORTHO
             return getWorldPosLog(vec3(coord, depth));
@@ -543,6 +554,17 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
   
     vec3 computeNormal(vec3 worldPos, vec2 vUv) {
       ivec2 p = ivec2(vUv * resolution);
+      #ifdef REVERSEDEPTH
+      float c0 = 1.0 - texelFetch(sceneDepth, p, 0).x;
+      float l2 = 1.0 - texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
+      float l1 = 1.0 - texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
+      float r1 = 1.0 - texelFetch(sceneDepth, p + ivec2(1, 0), 0).x;
+      float r2 = 1.0 - texelFetch(sceneDepth, p + ivec2(2, 0), 0).x;
+      float b2 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 2), 0).x;
+      float b1 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
+      float t1 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
+      float t2 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
+      #else
       float c0 = texelFetch(sceneDepth, p, 0).x;
       float l2 = texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
       float l1 = texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
@@ -552,6 +574,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
       float b1 = texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
       float t1 = texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
       float t2 = texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
+      #endif
   
       float dl = abs((2.0 * l1 - l2) - c0);
       float dr = abs((2.0 * r1 - r2) - c0);
@@ -573,10 +596,11 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
     void main() {
         //vec4 texel = texture2D(tDiffuse, vUv);//vec3(0.0);
         vec4 sceneTexel = texture2D(sceneDiffuse, vUv);
-        float depth = texture2D(
-            sceneDepth,
-            vUv
-        ).x;
+        #ifdef REVERSEDEPTH
+        float depth = 1.0 - texture2D(sceneDepth, vUv).x;
+        #else
+        float depth = texture2D(sceneDepth, vUv).x;
+        #endif
         #ifdef HALFRES 
         vec4 texel;
         if (depth == 1.0) {
@@ -650,8 +674,13 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
             float transparencyDWOff = texture2D(transparencyDWFalse, vUv).a;
             float transparencyDWOn = texture2D(transparencyDWTrue, vUv).a;
             float adjustmentFactorOff = transparencyDWOff;
+            #ifdef REVERSEDEPTH
+            float depthSample = 1.0 - texture2D(sceneDepth, vUv).r;
+            #else
+            float depthSample = texture2D(sceneDepth, vUv).r;
+            #endif
             float adjustmentFactorOn = (1.0 - transparencyDWOn) * (
-                texture2D(transparencyDWTrueDepth, vUv).r == texture2D(sceneDepth, vUv).r ? 1.0 : 0.0
+                texture2D(transparencyDWTrueDepth, vUv).r == depthSample ? 1.0 : 0.0
             );
             float adjustmentFactor = max(adjustmentFactorOff, adjustmentFactorOn);
             finalAo = mix(finalAo, 1.0, adjustmentFactor);
@@ -750,9 +779,6 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
         "far": {
             value: 1000.0
         },
-        "logDepth": {
-            value: false
-        },
         "screenSpaceRadius": {
             value: false
         }
@@ -780,7 +806,6 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
      uniform float near;
      uniform float far;
      uniform float distanceFalloff;
-     uniform bool logDepth;
      uniform bool screenSpaceRadius;
     varying vec2 vUv;
 
@@ -968,6 +993,17 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
   
     vec3 computeNormal(vec3 worldPos, vec2 vUv) {
       ivec2 p = ivec2(vUv * resolution);
+      #ifdef REVERSEDEPTH
+      float c0 = 1.0 - texelFetch(sceneDepth, p, 0).x;
+      float l2 = 1.0 - texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
+      float l1 = 1.0 - texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
+      float r1 = 1.0 - texelFetch(sceneDepth, p + ivec2(1, 0), 0).x;
+      float r2 = 1.0 - texelFetch(sceneDepth, p + ivec2(2, 0), 0).x;
+      float b2 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 2), 0).x;
+      float b1 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
+      float t1 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
+      float t2 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
+      #else
       float c0 = texelFetch(sceneDepth, p, 0).x;
       float l2 = texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
       float l1 = texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
@@ -977,6 +1013,7 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
       float b1 = texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
       float t1 = texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
       float t2 = texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
+      #endif
   
       float dl = abs((2.0 * l1 - l2) - c0);
       float dr = abs((2.0 * r1 - r2) - c0);
@@ -1000,10 +1037,17 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
         uvSamples[1] = uv + vec2(pixelSize.x, 0.0);
         uvSamples[2] = uv + vec2(0.0, pixelSize.y);
         uvSamples[3] = uv + pixelSize;
+        #ifdef REVERSEDEPTH
+        float depth00 = 1.0 - texture2D(sceneDepth, uvSamples[0]).r;
+        float depth10 = 1.0 - texture2D(sceneDepth, uvSamples[1]).r;
+        float depth01 = 1.0 - texture2D(sceneDepth, uvSamples[2]).r;
+        float depth11 = 1.0 - texture2D(sceneDepth, uvSamples[3]).r;
+        #else
         float depth00 = texture2D(sceneDepth, uvSamples[0]).r;
         float depth10 = texture2D(sceneDepth, uvSamples[1]).r;
         float depth01 = texture2D(sceneDepth, uvSamples[2]).r;
         float depth11 = texture2D(sceneDepth, uvSamples[3]).r;
+        #endif
         float minDepth = min(min(depth00, depth10), min(depth01, depth11));
         float maxDepth = max(max(depth00, depth10), max(depth01, depth11));
         float targetDepth = minDepth;
@@ -1151,7 +1195,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
          * renderMode: 0 | 1 | 2 | 3 | 4,
          * color: THREE.Color,
          * gammaCorrection: boolean,
-         * logarithmicDepthBuffer: boolean
+         * depthBufferType: 1 | 2 | 3,
          * screenSpaceRadius: boolean,
          * halfRes: boolean,
          * depthAwareUpsampling: boolean
@@ -1172,7 +1216,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
             biasMultiplier: 0.0,
             color: new $5Whe3$Color(0, 0, 0),
             gammaCorrection: true,
-            logarithmicDepthBuffer: false,
+            depthBufferType: (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Default,
             screenSpaceRadius: false,
             halfRes: false,
             depthAwareUpsampling: true,
@@ -1186,15 +1230,15 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
                 if (value.equals) {
                     if (!value.equals(oldProp)) this.firstFrame();
                 } else if (oldProp !== value) this.firstFrame();
-                if (propName === "aoSamples" && oldProp !== value) this.configureAOPass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
-                if (propName === "denoiseSamples" && oldProp !== value) this.configureDenoisePass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+                if (propName === "aoSamples" && oldProp !== value) this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+                if (propName === "denoiseSamples" && oldProp !== value) this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 if (propName === "halfRes" && oldProp !== value) {
-                    this.configureAOPass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+                    this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                     this.configureHalfResTargets();
-                    this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+                    this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                     this.setSize(this.width, this.height);
                 }
-                if (propName === "depthAwareUpsampling" && oldProp !== value) this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+                if (propName === "depthAwareUpsampling" && oldProp !== value) this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 if (propName === "gammaCorrection") this.autosetGamma = false;
                 if (propName === "transparencyAware" && oldProp !== value) {
                     this.autoDetectTransparency = false;
@@ -1209,7 +1253,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         this.frames = 0;
         this.lastViewMatrix = new $5Whe3$Matrix4();
         this.lastProjectionMatrix = new $5Whe3$Matrix4();
-        this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
+        this.configureEffectCompositer(this.configuration.depthBufferType);
         this.configureSampleDependentPasses();
         this.configureHalfResTargets();
         this.detectTransparency();
@@ -1431,17 +1475,18 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         renderer.autoClearDepth = oldAutoClearDepth;
     }
     configureSampleDependentPasses() {
-        this.configureAOPass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
-        this.configureDenoisePass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+        this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+        this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
     }
-    configureAOPass(logarithmicDepthBuffer = false, ortho = false) {
+    configureAOPass(depthBufferType = (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Default, ortho = false) {
         this.firstFrame();
         this.samples = this.generateHemisphereSamples(this.configuration.aoSamples);
         const e = {
             ...(0, $1ed45968c1160c3c$export$c9b263b9a17dffd7)
         };
         e.fragmentShader = e.fragmentShader.replace("16", this.configuration.aoSamples).replace("16.0", this.configuration.aoSamples + ".0");
-        if (logarithmicDepthBuffer) e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
+        if (depthBufferType === (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Log) e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
+        else if (depthBufferType === (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Reverse) e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
         if (ortho) e.fragmentShader = "#define ORTHO\n" + e.fragmentShader;
         if (this.configuration.halfRes) e.fragmentShader = "#define HALFRES\n" + e.fragmentShader;
         if (this.effectShaderQuad) {
@@ -1449,26 +1494,28 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
             this.effectShaderQuad.material = new $5Whe3$ShaderMaterial(e);
         } else this.effectShaderQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(e));
     }
-    configureDenoisePass(logarithmicDepthBuffer = false, ortho = false) {
+    configureDenoisePass(depthBufferType = (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Default, ortho = false) {
         this.firstFrame();
         this.samplesDenoise = this.generateDenoiseSamples(this.configuration.denoiseSamples, 11);
         const p = {
             ...(0, $e52378cd0f5a973d$export$57856b59f317262e)
         };
         p.fragmentShader = p.fragmentShader.replace("16", this.configuration.denoiseSamples);
-        if (logarithmicDepthBuffer) p.fragmentShader = "#define LOGDEPTH\n" + p.fragmentShader;
+        if (depthBufferType === (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Log) p.fragmentShader = "#define LOGDEPTH\n" + p.fragmentShader;
+        else if (depthBufferType === (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Reverse) p.fragmentShader = "#define REVERSEDEPTH\n" + p.fragmentShader;
         if (ortho) p.fragmentShader = "#define ORTHO\n" + p.fragmentShader;
         if (this.poissonBlurQuad) {
             this.poissonBlurQuad.material.dispose();
             this.poissonBlurQuad.material = new $5Whe3$ShaderMaterial(p);
         } else this.poissonBlurQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(p));
     }
-    configureEffectCompositer(logarithmicDepthBuffer = false, ortho = false) {
+    configureEffectCompositer(depthBufferType = (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Default, ortho = false) {
         this.firstFrame();
         const e = {
             ...(0, $12b21d24d1192a04$export$a815acccbd2c9a49)
         };
-        if (logarithmicDepthBuffer) e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
+        if (depthBufferType === (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Log) e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
+        else if (depthBufferType === (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Reverse) e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
         if (ortho) e.fragmentShader = "#define ORTHO\n" + e.fragmentShader;
         if (this.configuration.halfRes && this.configuration.depthAwareUpsampling) e.fragmentShader = "#define HALFRES\n" + e.fragmentShader;
         if (this.effectCompositerQuad) {
@@ -1540,11 +1587,11 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         //renderer.setRenderTarget(outputBuffer);
         //  this.copyQuad.material.uniforms.tDiffuse.value = inputBuffer.texture;
         //   this.copyQuad.render(renderer);
-        if (renderer.capabilities.logarithmicDepthBuffer !== this.configuration.logarithmicDepthBuffer) {
-            this.configuration.logarithmicDepthBuffer = renderer.capabilities.logarithmicDepthBuffer;
-            this.configureAOPass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
-            this.configureDenoisePass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
-            this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+        if (renderer.capabilities.logarithmicDepthBuffer && this.configuration.depthBufferType !== (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Log || renderer.capabilities.reverseDepthBuffer && this.configuration.depthBufferType !== (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Reverse) {
+            this.configuration.depthBufferType = renderer.capabilities.logarithmicDepthBuffer ? (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Log : renderer.capabilities.reverseDepthBuffer ? (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Reverse : (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Default;
+            this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+            this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+            this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
         }
         this.detectTransparency();
         if (inputBuffer.texture.type !== this.outputTargetInternal.texture.type || inputBuffer.texture.format !== this.outputTargetInternal.texture.format) {
@@ -1614,7 +1661,6 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
             this.effectShaderQuad.material.uniforms["distanceFalloff"].value = this.configuration.distanceFalloff;
             this.effectShaderQuad.material.uniforms["near"].value = this.camera.near;
             this.effectShaderQuad.material.uniforms["far"].value = this.camera.far;
-            this.effectShaderQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
             this.effectShaderQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
             this.effectShaderQuad.material.uniforms["screenSpaceRadius"].value = this.configuration.screenSpaceRadius;
             this.effectShaderQuad.material.uniforms["frame"].value = this.frame;
@@ -1645,7 +1691,6 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
                 this.poissonBlurQuad.material.uniforms["poissonDisk"].value = this.samplesDenoise;
                 this.poissonBlurQuad.material.uniforms["near"].value = this.camera.near;
                 this.poissonBlurQuad.material.uniforms["far"].value = this.camera.far;
-                this.poissonBlurQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
                 this.poissonBlurQuad.material.uniforms["screenSpaceRadius"].value = this.configuration.screenSpaceRadius;
                 renderer.setRenderTarget(this.writeTargetInternal);
                 this.poissonBlurQuad.render(renderer);
@@ -1674,7 +1719,6 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         this.effectCompositerQuad.material.uniforms["far"].value = this.camera.far;
         this.effectCompositerQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
         this.effectCompositerQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-        this.effectCompositerQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
         this.effectCompositerQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
         this.effectCompositerQuad.material.uniforms["downsampledDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.textures[0] : this.depthTexture;
         this.effectCompositerQuad.material.uniforms["resolution"].value = this._r;
@@ -1781,6 +1825,11 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         $05f6997e4b65da14$var$checkTimerQuery(timerQuery, gl, pass);
     }, 1);
 }
+const $05f6997e4b65da14$export$ed4ee5d1e55474a5 = {
+    Default: 1,
+    Log: 2,
+    Reverse: 3
+};
 class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
     /**
      * 
@@ -1812,7 +1861,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
          * renderMode: 0 | 1 | 2 | 3 | 4,
          * color: THREE.Color,
          * gammaCorrection: boolean,
-         * logarithmicDepthBuffer: boolean
+         * depthBufferType: 1 | 2 | 3,
          * screenSpaceRadius: boolean,
          * halfRes: boolean,
          * depthAwareUpsampling: boolean,
@@ -1833,7 +1882,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             biasMultiplier: 0.0,
             color: new $5Whe3$Color(0, 0, 0),
             gammaCorrection: true,
-            logarithmicDepthBuffer: false,
+            depthBufferType: $05f6997e4b65da14$export$ed4ee5d1e55474a5.Default,
             screenSpaceRadius: false,
             halfRes: false,
             depthAwareUpsampling: true,
@@ -1849,15 +1898,15 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
                 if (value.equals) {
                     if (!value.equals(oldProp)) this.firstFrame();
                 } else if (oldProp !== value) this.firstFrame();
-                if (propName === "aoSamples" && oldProp !== value) this.configureAOPass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
-                if (propName === "denoiseSamples" && oldProp !== value) this.configureDenoisePass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+                if (propName === "aoSamples" && oldProp !== value) this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+                if (propName === "denoiseSamples" && oldProp !== value) this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 if (propName === "halfRes" && oldProp !== value) {
-                    this.configureAOPass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+                    this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                     this.configureHalfResTargets();
-                    this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+                    this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                     this.setSize(this.width, this.height);
                 }
-                if (propName === "depthAwareUpsampling" && oldProp !== value) this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+                if (propName === "depthAwareUpsampling" && oldProp !== value) this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 if (propName === "transparencyAware" && oldProp !== value) {
                     this.autoDetectTransparency = false;
                     this.configureTransparencyTarget();
@@ -1896,7 +1945,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         });
         this.beautyRenderTarget.depthTexture = new $5Whe3$DepthTexture(this.width, this.height, $5Whe3$UnsignedIntType);
         this.beautyRenderTarget.depthTexture.format = $5Whe3$DepthFormat;
-        this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+        this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
         this.configureSampleDependentPasses();
         this.configureHalfResTargets();
         this.detectTransparency();
@@ -1977,7 +2026,11 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             this.depthDownsampleTarget.textures[1].minFilter = $5Whe3$NearestFilter;
             this.depthDownsampleTarget.textures[1].magFilter = $5Whe3$NearestFilter;
             this.depthDownsampleTarget.textures[1].depthBuffer = false;
-            this.depthDownsampleQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial((0, $26aca173e0984d99$export$1efdf491687cd442)));
+            const e = {
+                ...(0, $26aca173e0984d99$export$1efdf491687cd442)
+            };
+            if (depthBufferType === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse) e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
+            this.depthDownsampleQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(e));
         } else {
             if (this.depthDownsampleTarget) {
                 this.depthDownsampleTarget.dispose();
@@ -2089,17 +2142,18 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
     }
     configureSampleDependentPasses() {
         this.firstFrame();
-        this.configureAOPass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
-        this.configureDenoisePass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+        this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+        this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
     }
-    configureAOPass(logarithmicDepthBuffer = false, ortho = false) {
+    configureAOPass(depthBufferType1 = $05f6997e4b65da14$export$ed4ee5d1e55474a5.Default, ortho = false) {
         this.firstFrame();
         this.samples = this.generateHemisphereSamples(this.configuration.aoSamples);
         const e = {
             ...(0, $1ed45968c1160c3c$export$c9b263b9a17dffd7)
         };
         e.fragmentShader = e.fragmentShader.replace("16", this.configuration.aoSamples).replace("16.0", this.configuration.aoSamples + ".0");
-        if (logarithmicDepthBuffer) e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
+        if (depthBufferType1 === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Log) e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
+        else if (depthBufferType1 === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse) e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
         if (ortho) e.fragmentShader = "#define ORTHO\n" + e.fragmentShader;
         if (this.configuration.halfRes) e.fragmentShader = "#define HALFRES\n" + e.fragmentShader;
         if (this.effectShaderQuad) {
@@ -2107,26 +2161,28 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             this.effectShaderQuad.material = new $5Whe3$ShaderMaterial(e);
         } else this.effectShaderQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(e));
     }
-    configureDenoisePass(logarithmicDepthBuffer = false, ortho = false) {
+    configureDenoisePass(depthBufferType1 = $05f6997e4b65da14$export$ed4ee5d1e55474a5.Default, ortho = false) {
         this.firstFrame();
         this.samplesDenoise = this.generateDenoiseSamples(this.configuration.denoiseSamples, 11);
         const p = {
             ...(0, $e52378cd0f5a973d$export$57856b59f317262e)
         };
         p.fragmentShader = p.fragmentShader.replace("16", this.configuration.denoiseSamples);
-        if (logarithmicDepthBuffer) p.fragmentShader = "#define LOGDEPTH\n" + p.fragmentShader;
+        if (depthBufferType1 === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Log) p.fragmentShader = "#define LOGDEPTH\n" + p.fragmentShader;
+        else if (depthBufferType1 === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse) p.fragmentShader = "#define REVERSEDEPTH\n" + p.fragmentShader;
         if (ortho) p.fragmentShader = "#define ORTHO\n" + p.fragmentShader;
         if (this.poissonBlurQuad) {
             this.poissonBlurQuad.material.dispose();
             this.poissonBlurQuad.material = new $5Whe3$ShaderMaterial(p);
         } else this.poissonBlurQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(p));
     }
-    configureEffectCompositer(logarithmicDepthBuffer = false, ortho = false) {
+    configureEffectCompositer(depthBufferType1 = $05f6997e4b65da14$export$ed4ee5d1e55474a5.Default, ortho = false) {
         this.firstFrame();
         const e = {
             ...(0, $12b21d24d1192a04$export$a815acccbd2c9a49)
         };
-        if (logarithmicDepthBuffer) e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
+        if (depthBufferType1 === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Log) e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
+        else if (depthBufferType1 === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse) e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
         if (ortho) e.fragmentShader = "#define ORTHO\n" + e.fragmentShader;
         if (this.configuration.halfRes && this.configuration.depthAwareUpsampling) e.fragmentShader = "#define HALFRES\n" + e.fragmentShader;
         if (this.effectCompositerQuad) {
@@ -2189,11 +2245,11 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         this.needsFrame = true;
     }
     render(renderer, writeBuffer, readBuffer, deltaTime, maskActive) {
-        if (renderer.capabilities.logarithmicDepthBuffer !== this.configuration.logarithmicDepthBuffer) {
-            this.configuration.logarithmicDepthBuffer = renderer.capabilities.logarithmicDepthBuffer;
-            this.configureAOPass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
-            this.configureDenoisePass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
-            this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+        if (renderer.capabilities.logarithmicDepthBuffer && this.configuration.depthBufferType !== $05f6997e4b65da14$export$ed4ee5d1e55474a5.Log || renderer.capabilities.reverseDepthBuffer && this.configuration.depthBufferType !== $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse) {
+            this.configuration.depthBufferType = renderer.capabilities.logarithmicDepthBuffer ? $05f6997e4b65da14$export$ed4ee5d1e55474a5.Log : renderer.capabilities.reverseDepthBuffer ? $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse : $05f6997e4b65da14$export$ed4ee5d1e55474a5.Default;
+            this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+            this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+            this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
         }
         this.detectTransparency();
         this.camera.updateMatrixWorld();
@@ -2242,7 +2298,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
                 this.depthDownsampleQuad.material.uniforms["far"].value = this.camera.far;
                 this.depthDownsampleQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
                 this.depthDownsampleQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-                this.depthDownsampleQuad.material.uniforms["logDepth"].value = this.configuration.logarithmicDepthBuffer;
+                this.depthDownsampleQuad.material.uniforms["logDepth"].value = this.configuration.depthBufferType === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Log;
                 this.depthDownsampleQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
                 this.depthDownsampleQuad.render(renderer);
             }
@@ -2264,7 +2320,6 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             this.effectShaderQuad.material.uniforms["distanceFalloff"].value = this.configuration.distanceFalloff;
             this.effectShaderQuad.material.uniforms["near"].value = this.camera.near;
             this.effectShaderQuad.material.uniforms["far"].value = this.camera.far;
-            this.effectShaderQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
             this.effectShaderQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
             this.effectShaderQuad.material.uniforms["screenSpaceRadius"].value = this.configuration.screenSpaceRadius;
             this.effectShaderQuad.material.uniforms["frame"].value = this.frame;
@@ -2295,7 +2350,6 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
                 this.poissonBlurQuad.material.uniforms["poissonDisk"].value = this.samplesDenoise;
                 this.poissonBlurQuad.material.uniforms["near"].value = this.camera.near;
                 this.poissonBlurQuad.material.uniforms["far"].value = this.camera.far;
-                this.poissonBlurQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
                 this.poissonBlurQuad.material.uniforms["screenSpaceRadius"].value = this.configuration.screenSpaceRadius;
                 renderer.setRenderTarget(this.writeTargetInternal);
                 this.poissonBlurQuad.render(renderer);
@@ -2324,7 +2378,6 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         this.effectCompositerQuad.material.uniforms["far"].value = this.camera.far;
         this.effectCompositerQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
         this.effectCompositerQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-        this.effectCompositerQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
         this.effectCompositerQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
         this.effectCompositerQuad.material.uniforms["downsampledDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.textures[0] : this.beautyRenderTarget.depthTexture;
         this.effectCompositerQuad.material.uniforms["resolution"].value = this._r;
@@ -2409,5 +2462,5 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
 }
 
 
-export {$05f6997e4b65da14$export$2d57db20b5eb5e0a as N8AOPass, $87431ee93b037844$export$2489f9981ab0fa82 as N8AOPostPass};
+export {$05f6997e4b65da14$export$ed4ee5d1e55474a5 as DepthType, $05f6997e4b65da14$export$2d57db20b5eb5e0a as N8AOPass, $87431ee93b037844$export$2489f9981ab0fa82 as N8AOPostPass};
 //# sourceMappingURL=N8AO.js.map

@@ -28,6 +28,13 @@ function checkTimerQuery(timerQuery, gl, pass) {
         }, 1);
     }
 }
+
+export const DepthType = {
+    Default: 1,
+    Log: 2,
+    Reverse: 3,
+};
+
 class N8AOPass extends Pass {
     /**
      * 
@@ -62,7 +69,7 @@ class N8AOPass extends Pass {
          * renderMode: 0 | 1 | 2 | 3 | 4,
          * color: THREE.Color,
          * gammaCorrection: boolean,
-         * logarithmicDepthBuffer: boolean
+         * depthBufferType: 1 | 2 | 3,
          * screenSpaceRadius: boolean,
          * halfRes: boolean,
          * depthAwareUpsampling: boolean,
@@ -84,7 +91,7 @@ class N8AOPass extends Pass {
             biasMultiplier: 0.0,
             color: new THREE.Color(0, 0, 0),
             gammaCorrection: true,
-            logarithmicDepthBuffer: false,
+            depthBufferType: DepthType.Default,
             screenSpaceRadius: false,
             halfRes: false,
             depthAwareUpsampling: true,
@@ -107,19 +114,19 @@ class N8AOPass extends Pass {
                     }
                 }
                 if (propName === 'aoSamples' && oldProp !== value) {
-                    this.configureAOPass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+                    this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 }
                 if (propName === 'denoiseSamples' && oldProp !== value) {
-                    this.configureDenoisePass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+                    this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 }
                 if (propName === "halfRes" && oldProp !== value) {
-                    this.configureAOPass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+                    this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                     this.configureHalfResTargets();
-                    this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+                    this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                     this.setSize(this.width, this.height);
                 }
                 if (propName === "depthAwareUpsampling" && oldProp !== value) {
-                    this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+                    this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 }
                 if (propName === "transparencyAware" && oldProp !== value) {
                     this.autoDetectTransparency = false;
@@ -162,7 +169,7 @@ class N8AOPass extends Pass {
         });
         this.beautyRenderTarget.depthTexture = new THREE.DepthTexture(this.width, this.height, THREE.UnsignedIntType);
         this.beautyRenderTarget.depthTexture.format = THREE.DepthFormat;
-        this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+        this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
         this.configureSampleDependentPasses();
         this.configureHalfResTargets();
         this.detectTransparency();
@@ -258,8 +265,12 @@ class N8AOPass extends Pass {
             this.depthDownsampleTarget.textures[1].magFilter = THREE.NearestFilter;
             this.depthDownsampleTarget.textures[1].depthBuffer = false;
 
+            const e = { ...DepthDownSample };
+            if (depthBufferType === DepthType.Reverse) {
+                e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
+            }
 
-            this.depthDownsampleQuad = new FullScreenTriangle(new THREE.ShaderMaterial(DepthDownSample));
+            this.depthDownsampleQuad = new FullScreenTriangle(new THREE.ShaderMaterial(e));
         } else {
             if (this.depthDownsampleTarget) {
                 this.depthDownsampleTarget.dispose();
@@ -382,16 +393,18 @@ class N8AOPass extends Pass {
     }
     configureSampleDependentPasses() {
         this.firstFrame();
-        this.configureAOPass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
-        this.configureDenoisePass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+        this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+        this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
     }
-    configureAOPass(logarithmicDepthBuffer = false, ortho = false) {
+    configureAOPass(depthBufferType = DepthType.Default, ortho = false) {
         this.firstFrame();
         this.samples = this.generateHemisphereSamples(this.configuration.aoSamples);
         const e = {...EffectShader };
         e.fragmentShader = e.fragmentShader.replace("16", this.configuration.aoSamples).replace("16.0", this.configuration.aoSamples + ".0");
-        if (logarithmicDepthBuffer) {
+        if (depthBufferType === DepthType.Log) {
             e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
+        } else if (depthBufferType === DepthType.Reverse) {
+            e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
         }
         if (ortho) {
             e.fragmentShader = "#define ORTHO\n" + e.fragmentShader;
@@ -406,13 +419,15 @@ class N8AOPass extends Pass {
             this.effectShaderQuad = new FullScreenTriangle(new THREE.ShaderMaterial(e));
         }
     }
-    configureDenoisePass(logarithmicDepthBuffer = false, ortho = false) {
+    configureDenoisePass(depthBufferType = DepthType.Default, ortho = false) {
         this.firstFrame();
         this.samplesDenoise = this.generateDenoiseSamples(this.configuration.denoiseSamples, 11);
         const p = {...PoissionBlur };
         p.fragmentShader = p.fragmentShader.replace("16", this.configuration.denoiseSamples);
-        if (logarithmicDepthBuffer) {
+        if (depthBufferType === DepthType.Log) {
             p.fragmentShader = "#define LOGDEPTH\n" + p.fragmentShader;
+        } else if (depthBufferType === DepthType.Reverse) {
+            p.fragmentShader = "#define REVERSEDEPTH\n" + p.fragmentShader;
         }
         if (ortho) {
             p.fragmentShader = "#define ORTHO\n" + p.fragmentShader;
@@ -424,11 +439,13 @@ class N8AOPass extends Pass {
             this.poissonBlurQuad = new FullScreenTriangle(new THREE.ShaderMaterial(p));
         }
     }
-    configureEffectCompositer(logarithmicDepthBuffer = false, ortho = false) {
+    configureEffectCompositer(depthBufferType = DepthType.Default, ortho = false) {
             this.firstFrame();
             const e = {...EffectCompositer };
-            if (logarithmicDepthBuffer) {
+            if (depthBufferType === DepthType.Log) {
                 e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
+            } else if (depthBufferType === DepthType.Reverse) {
+                e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
             }
             if (ortho) {
                 e.fragmentShader = "#define ORTHO\n" + e.fragmentShader;
@@ -508,11 +525,11 @@ class N8AOPass extends Pass {
     }
 
     render(renderer, writeBuffer, readBuffer, deltaTime, maskActive) {
-            if (renderer.capabilities.logarithmicDepthBuffer !== this.configuration.logarithmicDepthBuffer) {
-                this.configuration.logarithmicDepthBuffer = renderer.capabilities.logarithmicDepthBuffer;
-                this.configureAOPass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
-                this.configureDenoisePass(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
-                this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer, this.camera.isOrthographicCamera);
+            if (renderer.capabilities.logarithmicDepthBuffer && this.configuration.depthBufferType !== DepthType.Log || renderer.capabilities.reverseDepthBuffer && this.configuration.depthBufferType !== DepthType.Reverse) {
+                this.configuration.depthBufferType = renderer.capabilities.logarithmicDepthBuffer ? DepthType.Log : renderer.capabilities.reverseDepthBuffer ? DepthType.Reverse : DepthType.Default;
+                this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+                this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+                this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
             }
             this.detectTransparency();
             this.camera.updateMatrixWorld();
@@ -568,7 +585,7 @@ class N8AOPass extends Pass {
                     this.depthDownsampleQuad.material.uniforms["far"].value = this.camera.far;
                     this.depthDownsampleQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
                     this.depthDownsampleQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-                    this.depthDownsampleQuad.material.uniforms["logDepth"].value = this.configuration.logarithmicDepthBuffer;
+                    this.depthDownsampleQuad.material.uniforms["logDepth"].value = this.configuration.depthBufferType === DepthType.Log;
                     this.depthDownsampleQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
                     this.depthDownsampleQuad.render(renderer);
                 }
@@ -590,7 +607,6 @@ class N8AOPass extends Pass {
                 this.effectShaderQuad.material.uniforms['distanceFalloff'].value = this.configuration.distanceFalloff;
                 this.effectShaderQuad.material.uniforms["near"].value = this.camera.near;
                 this.effectShaderQuad.material.uniforms["far"].value = this.camera.far;
-                this.effectShaderQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
                 this.effectShaderQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
                 this.effectShaderQuad.material.uniforms["screenSpaceRadius"].value = this.configuration.screenSpaceRadius;
                 this.effectShaderQuad.material.uniforms["frame"].value = this.frame;
@@ -620,7 +636,6 @@ class N8AOPass extends Pass {
                     this.poissonBlurQuad.material.uniforms['poissonDisk'].value = this.samplesDenoise;
                     this.poissonBlurQuad.material.uniforms["near"].value = this.camera.near;
                     this.poissonBlurQuad.material.uniforms["far"].value = this.camera.far;
-                    this.poissonBlurQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
                     this.poissonBlurQuad.material.uniforms["screenSpaceRadius"].value = this.configuration.screenSpaceRadius;
                     renderer.setRenderTarget(this.writeTargetInternal);
                     this.poissonBlurQuad.render(renderer);
@@ -650,7 +665,6 @@ class N8AOPass extends Pass {
             this.effectCompositerQuad.material.uniforms["far"].value = this.camera.far;
             this.effectCompositerQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
             this.effectCompositerQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-            this.effectCompositerQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
             this.effectCompositerQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
             this.effectCompositerQuad.material.uniforms["downsampledDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.textures[0] : this.beautyRenderTarget.depthTexture;
             this.effectCompositerQuad.material.uniforms["resolution"].value = this._r;

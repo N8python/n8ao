@@ -22,7 +22,6 @@ const EffectCompositer = {
         'intensity': { value: 10.0 },
         'renderMode': { value: 0.0 },
         "gammaCorrection": { value: false },
-        "logDepth": { value: false },
         "ortho": { value: false },
         "near": { value: 0.1 },
         "far": { value: 1000.0 },
@@ -66,7 +65,6 @@ const EffectCompositer = {
     uniform float far;
     uniform float aoTones;
     uniform bool gammaCorrection;
-    uniform bool logDepth;
     uniform bool ortho;
     uniform bool screenSpaceRadius;
     uniform bool fog;
@@ -112,7 +110,6 @@ const EffectCompositer = {
         return wpos.xyz / wpos.w;
       }
       vec3 getWorldPos(float depth, vec2 coord) {
-       // if (logDepth) {
         #ifdef LOGDEPTH
           #ifndef ORTHO
             return getWorldPosLog(vec3(coord, depth));
@@ -130,6 +127,17 @@ const EffectCompositer = {
   
     vec3 computeNormal(vec3 worldPos, vec2 vUv) {
       ivec2 p = ivec2(vUv * resolution);
+      #ifdef REVERSEDEPTH
+      float c0 = 1.0 - texelFetch(sceneDepth, p, 0).x;
+      float l2 = 1.0 - texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
+      float l1 = 1.0 - texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
+      float r1 = 1.0 - texelFetch(sceneDepth, p + ivec2(1, 0), 0).x;
+      float r2 = 1.0 - texelFetch(sceneDepth, p + ivec2(2, 0), 0).x;
+      float b2 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 2), 0).x;
+      float b1 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
+      float t1 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
+      float t2 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
+      #else
       float c0 = texelFetch(sceneDepth, p, 0).x;
       float l2 = texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
       float l1 = texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
@@ -139,6 +147,7 @@ const EffectCompositer = {
       float b1 = texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
       float t1 = texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
       float t2 = texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
+      #endif
   
       float dl = abs((2.0 * l1 - l2) - c0);
       float dr = abs((2.0 * r1 - r2) - c0);
@@ -160,10 +169,11 @@ const EffectCompositer = {
     void main() {
         //vec4 texel = texture2D(tDiffuse, vUv);//vec3(0.0);
         vec4 sceneTexel = texture2D(sceneDiffuse, vUv);
-        float depth = texture2D(
-            sceneDepth,
-            vUv
-        ).x;
+        #ifdef REVERSEDEPTH
+        float depth = 1.0 - texture2D(sceneDepth, vUv).x;
+        #else
+        float depth = texture2D(sceneDepth, vUv).x;
+        #endif
         #ifdef HALFRES 
         vec4 texel;
         if (depth == 1.0) {
@@ -237,8 +247,13 @@ const EffectCompositer = {
             float transparencyDWOff = texture2D(transparencyDWFalse, vUv).a;
             float transparencyDWOn = texture2D(transparencyDWTrue, vUv).a;
             float adjustmentFactorOff = transparencyDWOff;
+            #ifdef REVERSEDEPTH
+            float depthSample = 1.0 - texture2D(sceneDepth, vUv).r;
+            #else
+            float depthSample = texture2D(sceneDepth, vUv).r;
+            #endif
             float adjustmentFactorOn = (1.0 - transparencyDWOn) * (
-                texture2D(transparencyDWTrueDepth, vUv).r == texture2D(sceneDepth, vUv).r ? 1.0 : 0.0
+                texture2D(transparencyDWTrueDepth, vUv).r == depthSample ? 1.0 : 0.0
             );
             float adjustmentFactor = max(adjustmentFactorOff, adjustmentFactorOn);
             finalAo = mix(finalAo, 1.0, adjustmentFactor);

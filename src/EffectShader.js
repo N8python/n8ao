@@ -21,7 +21,6 @@ const EffectShader = {
         'radius': { value: 5.0 },
         'near': { value: 0.1 },
         'far': { value: 1000.0 },
-        'logDepth': { value: false },
         'ortho': { value: false },
         'screenSpaceRadius': { value: false },
         'frame': { value: 0.0 }
@@ -56,7 +55,6 @@ uniform float distanceFalloff;
 uniform float near;
 uniform float far;
 uniform float frame;
-uniform bool logDepth;
 uniform bool ortho;
 uniform bool screenSpaceRadius;
 uniform sampler2D bluenoise;
@@ -117,6 +115,17 @@ uniform sampler2D bluenoise;
 
   vec3 computeNormal(vec3 worldPos, vec2 vUv) {
     ivec2 p = ivec2(vUv * resolution);
+    #ifdef REVERSEDEPTH
+    float c0 = 1.0 - texelFetch(sceneDepth, p, 0).x;
+    float l2 = 1.0 - texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
+    float l1 = 1.0 - texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
+    float r1 = 1.0 - texelFetch(sceneDepth, p + ivec2(1, 0), 0).x;
+    float r2 = 1.0 - texelFetch(sceneDepth, p + ivec2(2, 0), 0).x;
+    float b2 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 2), 0).x;
+    float b1 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
+    float t1 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
+    float t2 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
+    #else
     float c0 = texelFetch(sceneDepth, p, 0).x;
     float l2 = texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
     float l1 = texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
@@ -126,6 +135,7 @@ uniform sampler2D bluenoise;
     float b1 = texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
     float t1 = texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
     float t2 = texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
+    #endif
 
     float dl = abs((2.0 * l1 - l2) - c0);
     float dr = abs((2.0 * r1 - r2) - c0);
@@ -152,7 +162,11 @@ mat3 makeRotationZ(float theta) {
 
 void main() {
       vec4 diffuse = texture2D(sceneDiffuse, vUv);
+      #ifdef REVERSEDEPTH
+      float depth = 1.0 - texture2D(sceneDepth, vUv).x;
+      #else
       float depth = texture2D(sceneDepth, vUv).x;
+      #endif
       if (depth == 1.0) {
         gl_FragColor = vec4(vec3(1.0), 1.0);
         return;
@@ -209,7 +223,11 @@ void main() {
         offset.xyz = offset.xyz * 0.5 + 0.5;
         
         if (all(greaterThan(offset.xyz * (1.0 - offset.xyz), vec3(0.0)))) {
+          #ifdef REVERSEDEPTH
+          float sampleDepth = 1.0 - textureLod(sceneDepth, offset.xy, 0.0).x;
+          #else
           float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;
+          #endif
 
           /*#ifdef LOGDEPTH
           float distSample = linearize_depth_log(sampleDepth, near, far);

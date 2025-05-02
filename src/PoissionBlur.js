@@ -21,7 +21,6 @@ const PoissionBlur = {
         "distanceFalloff": { value: 1.0 },
         'near': { value: 0.1 },
         'far': { value: 1000.0 },
-        'logDepth': { value: false },
         'screenSpaceRadius': { value: false }
     },
     depthWrite: false,
@@ -48,7 +47,6 @@ const PoissionBlur = {
      uniform float near;
      uniform float far;
      uniform float distanceFalloff;
-     uniform bool logDepth;
      uniform bool screenSpaceRadius;
     varying vec2 vUv;
 

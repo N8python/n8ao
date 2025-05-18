@@ -265,7 +265,7 @@ class N8AOPass extends Pass {
             this.depthDownsampleTarget.textures[1].magFilter = THREE.NearestFilter;
             this.depthDownsampleTarget.textures[1].depthBuffer = false;
 
-            const e = { ...DepthDownSample };
+            const e = {...DepthDownSample };
             if (depthBufferType === DepthType.Reverse) {
                 e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
             }
@@ -310,22 +310,33 @@ class N8AOPass extends Pass {
             this.transparencyRenderTargetDWTrue.depthTexture = new THREE.DepthTexture(this.width, this.height, THREE.UnsignedIntType);
             this.depthCopyPass = new FullScreenTriangle(new THREE.ShaderMaterial({
                 uniforms: {
-                    depthTexture: { value: this.beautyRenderTarget.depthTexture },
+                    depthTexture: { value: this.depthTexture },
+                    reverseDepthBuffer: { value: this.configuration.depthBufferType === DepthType.Reverse },
                 },
                 vertexShader: /* glsl */ `
-            varying vec2 vUv;
-            void main() {
-                vUv = uv;
-                gl_Position = vec4(position, 1);
-            }`,
+                        varying vec2 vUv;
+                        void main() {
+                            vUv = uv;
+                            gl_Position = vec4(position, 1);
+                        }`,
                 fragmentShader: /* glsl */ `
-            uniform sampler2D depthTexture;
-            varying vec2 vUv;
-            void main() {
-               gl_FragDepth = texture2D(depthTexture, vUv).r + 0.00001;
-               gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
-            }
-            `,
+                        uniform sampler2D depthTexture;
+                        uniform bool reverseDepthBuffer;
+                        varying vec2 vUv;
+                        void main() {
+                            if (reverseDepthBuffer) {
+                           float d = 1.0 - texture2D(depthTexture, vUv).r;
+                       
+                           d += 0.00001;
+                           gl_FragDepth = 1.0 - d;
+                        } else {
+                            float d = texture2D(depthTexture, vUv).r;
+                            d += 0.00001;
+                            gl_FragDepth = d;
+                        }
+                           gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+                        }
+                        `,
 
             }));
         } else {
@@ -359,7 +370,7 @@ class N8AOPass extends Pass {
         renderer.setClearColor(new THREE.Color(0, 0, 0), 0);
 
         this.depthCopyPass.material.uniforms.depthTexture.value = this.beautyRenderTarget.depthTexture;
-
+        this.depthCopyPass.material.uniforms.reverseDepthBuffer.value = this.configuration.depthBufferType === DepthType.Reverse;
         // Render out transparent objects WITHOUT depth write
         renderer.setRenderTarget(this.transparencyRenderTargetDWFalse);
         this.scene.traverse((obj) => {

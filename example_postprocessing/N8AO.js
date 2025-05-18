@@ -676,11 +676,13 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
             float adjustmentFactorOff = transparencyDWOff;
             #ifdef REVERSEDEPTH
             float depthSample = 1.0 - texture2D(sceneDepth, vUv).r;
+            float trueDepthSample = 1.0 - texture2D(transparencyDWTrueDepth, vUv).r;
             #else
             float depthSample = texture2D(sceneDepth, vUv).r;
+            float trueDepthSample = texture2D(transparencyDWTrueDepth, vUv).r;
             #endif
             float adjustmentFactorOn = (1.0 - transparencyDWOn) * (
-                texture2D(transparencyDWTrueDepth, vUv).r == depthSample ? 1.0 : 0.0
+                trueDepthSample == depthSample ? 1.0 : 0.0
             );
             float adjustmentFactor = max(adjustmentFactorOff, adjustmentFactorOn);
             finalAo = mix(finalAo, 1.0, adjustmentFactor);
@@ -1404,6 +1406,9 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
                 uniforms: {
                     depthTexture: {
                         value: this.depthTexture
+                    },
+                    reverseDepthBuffer: {
+                        value: this.configuration.depthBufferType === (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Reverse
                     }
                 },
                 vertexShader: /* glsl */ `
@@ -1414,9 +1419,19 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
             }`,
                 fragmentShader: /* glsl */ `
             uniform sampler2D depthTexture;
+            uniform bool reverseDepthBuffer;
             varying vec2 vUv;
             void main() {
-               gl_FragDepth = texture2D(depthTexture, vUv).r + 0.00001;
+                if (reverseDepthBuffer) {
+               float d = 1.0 - texture2D(depthTexture, vUv).r;
+           
+               d += 0.00001;
+               gl_FragDepth = 1.0 - d;
+            } else {
+                float d = texture2D(depthTexture, vUv).r;
+                d += 0.00001;
+                gl_FragDepth = d;
+            }
                gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
             }
             `
@@ -1450,6 +1465,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         renderer.autoClearDepth = false;
         renderer.setClearColor(new $5Whe3$Color(0, 0, 0), 0);
         this.depthCopyPass.material.uniforms.depthTexture.value = this.depthTexture;
+        this.depthCopyPass.material.uniforms.reverseDepthBuffer.value = this.configuration.depthBufferType === (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Reverse;
         // Render out transparent objects WITHOUT depth write
         renderer.setRenderTarget(this.transparencyRenderTargetDWFalse);
         this.scene.traverse((obj)=>{
@@ -2069,23 +2085,36 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             this.depthCopyPass = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial({
                 uniforms: {
                     depthTexture: {
-                        value: this.beautyRenderTarget.depthTexture
+                        value: this.depthTexture
+                    },
+                    reverseDepthBuffer: {
+                        value: this.configuration.depthBufferType === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse
                     }
                 },
                 vertexShader: /* glsl */ `
-            varying vec2 vUv;
-            void main() {
-                vUv = uv;
-                gl_Position = vec4(position, 1);
-            }`,
+                        varying vec2 vUv;
+                        void main() {
+                            vUv = uv;
+                            gl_Position = vec4(position, 1);
+                        }`,
                 fragmentShader: /* glsl */ `
-            uniform sampler2D depthTexture;
-            varying vec2 vUv;
-            void main() {
-               gl_FragDepth = texture2D(depthTexture, vUv).r + 0.00001;
-               gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
-            }
-            `
+                        uniform sampler2D depthTexture;
+                        uniform bool reverseDepthBuffer;
+                        varying vec2 vUv;
+                        void main() {
+                            if (reverseDepthBuffer) {
+                           float d = 1.0 - texture2D(depthTexture, vUv).r;
+                       
+                           d += 0.00001;
+                           gl_FragDepth = 1.0 - d;
+                        } else {
+                            float d = texture2D(depthTexture, vUv).r;
+                            d += 0.00001;
+                            gl_FragDepth = d;
+                        }
+                           gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+                        }
+                        `
             }));
         } else {
             if (this.transparencyRenderTargetDWFalse) {
@@ -2116,6 +2145,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         renderer.autoClearDepth = false;
         renderer.setClearColor(new $5Whe3$Color(0, 0, 0), 0);
         this.depthCopyPass.material.uniforms.depthTexture.value = this.beautyRenderTarget.depthTexture;
+        this.depthCopyPass.material.uniforms.reverseDepthBuffer.value = this.configuration.depthBufferType === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse;
         // Render out transparent objects WITHOUT depth write
         renderer.setRenderTarget(this.transparencyRenderTargetDWFalse);
         this.scene.traverse((obj)=>{

@@ -249,11 +249,13 @@ const EffectCompositer = {
             float adjustmentFactorOff = transparencyDWOff;
             #ifdef REVERSEDEPTH
             float depthSample = 1.0 - texture2D(sceneDepth, vUv).r;
+            float trueDepthSample = 1.0 - texture2D(transparencyDWTrueDepth, vUv).r;
             #else
             float depthSample = texture2D(sceneDepth, vUv).r;
+            float trueDepthSample = texture2D(transparencyDWTrueDepth, vUv).r;
             #endif
             float adjustmentFactorOn = (1.0 - transparencyDWOn) * (
-                texture2D(transparencyDWTrueDepth, vUv).r == depthSample ? 1.0 : 0.0
+                trueDepthSample == depthSample ? 1.0 : 0.0
             );
             float adjustmentFactor = max(adjustmentFactorOff, adjustmentFactorOn);
             finalAo = mix(finalAo, 1.0, adjustmentFactor);

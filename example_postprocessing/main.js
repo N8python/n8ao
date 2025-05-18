@@ -17,8 +17,7 @@ async function main() {
     const camera = new THREE.PerspectiveCamera(75, clientWidth / clientHeight, 0.1, 1000);
     camera.position.set(50, 75, 50);
     const renderer = new THREE.WebGLRenderer({
-        stencil: true,
-        reverseDepthBuffer: true,
+        stencil: true
     });
     renderer.setSize(clientWidth, clientHeight);
     document.body.appendChild(renderer.domElement);
@@ -173,9 +172,9 @@ async function main() {
         clientHeight
     );
     composer.addPass(n8aopass);
-    // composer.addPass(new EffectPass(camera, new SMAAEffect({
-    //     preset: SMAAPreset.ULTRA
-    // })));
+    composer.addPass(new EffectPass(camera, new SMAAEffect({
+        preset: SMAAPreset.ULTRA
+    })));
 
     window.addEventListener("resize", () => {
         clientWidth = window.innerWidth;

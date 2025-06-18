@@ -266,7 +266,7 @@ class N8AOPass extends Pass {
             this.depthDownsampleTarget.textures[1].depthBuffer = false;
 
             const e = {...DepthDownSample };
-            if (depthBufferType === DepthType.Reverse) {
+            if (this.configuration.depthBufferType === DepthType.Reverse) {
                 e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
             }
 

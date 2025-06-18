@@ -2045,7 +2045,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             const e = {
                 ...(0, $26aca173e0984d99$export$1efdf491687cd442)
             };
-            if (depthBufferType === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse) e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
+            if (this.configuration.depthBufferType === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse) e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
             this.depthDownsampleQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(e));
         } else {
             if (this.depthDownsampleTarget) {
@@ -2175,15 +2175,15 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
         this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
     }
-    configureAOPass(depthBufferType1 = $05f6997e4b65da14$export$ed4ee5d1e55474a5.Default, ortho = false) {
+    configureAOPass(depthBufferType = $05f6997e4b65da14$export$ed4ee5d1e55474a5.Default, ortho = false) {
         this.firstFrame();
         this.samples = this.generateHemisphereSamples(this.configuration.aoSamples);
         const e = {
             ...(0, $1ed45968c1160c3c$export$c9b263b9a17dffd7)
         };
         e.fragmentShader = e.fragmentShader.replace("16", this.configuration.aoSamples).replace("16.0", this.configuration.aoSamples + ".0");
-        if (depthBufferType1 === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Log) e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
-        else if (depthBufferType1 === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse) e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
+        if (depthBufferType === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Log) e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
+        else if (depthBufferType === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse) e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
         if (ortho) e.fragmentShader = "#define ORTHO\n" + e.fragmentShader;
         if (this.configuration.halfRes) e.fragmentShader = "#define HALFRES\n" + e.fragmentShader;
         if (this.effectShaderQuad) {
@@ -2191,28 +2191,28 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             this.effectShaderQuad.material = new $5Whe3$ShaderMaterial(e);
         } else this.effectShaderQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(e));
     }
-    configureDenoisePass(depthBufferType1 = $05f6997e4b65da14$export$ed4ee5d1e55474a5.Default, ortho = false) {
+    configureDenoisePass(depthBufferType = $05f6997e4b65da14$export$ed4ee5d1e55474a5.Default, ortho = false) {
         this.firstFrame();
         this.samplesDenoise = this.generateDenoiseSamples(this.configuration.denoiseSamples, 11);
         const p = {
             ...(0, $e52378cd0f5a973d$export$57856b59f317262e)
         };
         p.fragmentShader = p.fragmentShader.replace("16", this.configuration.denoiseSamples);
-        if (depthBufferType1 === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Log) p.fragmentShader = "#define LOGDEPTH\n" + p.fragmentShader;
-        else if (depthBufferType1 === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse) p.fragmentShader = "#define REVERSEDEPTH\n" + p.fragmentShader;
+        if (depthBufferType === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Log) p.fragmentShader = "#define LOGDEPTH\n" + p.fragmentShader;
+        else if (depthBufferType === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse) p.fragmentShader = "#define REVERSEDEPTH\n" + p.fragmentShader;
         if (ortho) p.fragmentShader = "#define ORTHO\n" + p.fragmentShader;
         if (this.poissonBlurQuad) {
             this.poissonBlurQuad.material.dispose();
             this.poissonBlurQuad.material = new $5Whe3$ShaderMaterial(p);
         } else this.poissonBlurQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(p));
     }
-    configureEffectCompositer(depthBufferType1 = $05f6997e4b65da14$export$ed4ee5d1e55474a5.Default, ortho = false) {
+    configureEffectCompositer(depthBufferType = $05f6997e4b65da14$export$ed4ee5d1e55474a5.Default, ortho = false) {
         this.firstFrame();
         const e = {
             ...(0, $12b21d24d1192a04$export$a815acccbd2c9a49)
         };
-        if (depthBufferType1 === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Log) e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
-        else if (depthBufferType1 === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse) e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
+        if (depthBufferType === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Log) e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
+        else if (depthBufferType === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse) e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
         if (ortho) e.fragmentShader = "#define ORTHO\n" + e.fragmentShader;
         if (this.configuration.halfRes && this.configuration.depthAwareUpsampling) e.fragmentShader = "#define HALFRES\n" + e.fragmentShader;
         if (this.effectCompositerQuad) {

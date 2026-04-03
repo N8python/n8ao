@@ -177,7 +177,7 @@ const EffectCompositer = {
         #ifdef HALFRES 
         vec4 texel;
         if (depth == 1.0) {
-            texel = vec4(0.0, 0.0, 0.0, 1.0);
+            texel = texture2D(tDiffuse, vUv);
         } else {
         vec3 worldPos = getWorldPos(depth, vUv);
         vec3 normal = computeNormal(getWorldPos(depth, vUv), vUv);

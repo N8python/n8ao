@@ -196,13 +196,20 @@ uniform sampler2D bluenoise;
           return getWorldPosLog(vec3(coord, depth));
         #endif
       #endif
-      float z = depth * 2.0 - 1.0;
-      vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
-      vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
-      // Perspective division
-     vec4 worldSpacePosition = viewSpacePosition;
-     worldSpacePosition.xyz /= worldSpacePosition.w;
-      return worldSpacePosition.xyz;
+      #ifdef ORTHO
+        float z = depth * 2. - 1.;
+        vec4 clipSpacePosition = vec4(coord * 2. - 1., z, 1.);
+        vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
+        viewSpacePosition.xyz /= viewSpacePosition.w;
+        return viewSpacePosition.xyz;
+      #else
+        vec2 ndc = coord * 2. - 1.;
+        float ndcZ = depth * 2. - 1.;
+        mat4 Q = projectionMatrixInv;
+        vec3 view = vec3(Q[0][0] * ndc.x + Q[3][0], Q[1][1] * ndc.y + Q[3][1], Q[3][2]);
+        float invW = 1. / (Q[2][3] * ndcZ + Q[3][3]);
+        return view * invW;
+      #endif
   }
 
   vec3 computeNormal(vec3 worldPos, vec2 vUv) {
@@ -543,13 +550,20 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
           #endif
         #endif
       //  }
-        float z = depth * 2.0 - 1.0;
-        vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
-        vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
-        // Perspective division
-       vec4 worldSpacePosition = viewSpacePosition;
-       worldSpacePosition.xyz /= worldSpacePosition.w;
-        return worldSpacePosition.xyz;
+        #ifdef ORTHO
+          float z = depth * 2. - 1.;
+          vec4 clipSpacePosition = vec4(coord * 2. - 1., z, 1.);
+          vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
+          viewSpacePosition.xyz /= viewSpacePosition.w;
+          return viewSpacePosition.xyz;
+        #else
+          vec2 ndc = coord * 2. - 1.;
+          float ndcZ = depth * 2. - 1.;
+          mat4 Q = projectionMatrixInv;
+          vec3 view = vec3(Q[0][0] * ndc.x + Q[3][0], Q[1][1] * ndc.y + Q[3][1], Q[3][2]);
+          float invW = 1. / (Q[2][3] * ndcZ + Q[3][3]);
+          return view * invW;
+        #endif
     }
   
     vec3 computeNormal(vec3 worldPos, vec2 vUv) {
@@ -846,13 +860,20 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
       #endif
      #endif
         
-        float z = depth * 2.0 - 1.0;
-        vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
-        vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
-        // Perspective division
-       vec4 worldSpacePosition = viewSpacePosition;
-       worldSpacePosition.xyz /= worldSpacePosition.w;
-        return worldSpacePosition.xyz;
+        #ifdef ORTHO
+          float z = depth * 2. - 1.;
+          vec4 clipSpacePosition = vec4(coord * 2. - 1., z, 1.);
+          vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
+          viewSpacePosition.xyz /= viewSpacePosition.w;
+          return viewSpacePosition.xyz;
+        #else
+          vec2 ndc = coord * 2. - 1.;
+          float ndcZ = depth * 2. - 1.;
+          mat4 Q = projectionMatrixInv;
+          vec3 view = vec3(Q[0][0] * ndc.x + Q[3][0], Q[1][1] * ndc.y + Q[3][1], Q[3][2]);
+          float invW = 1.0 / (Q[2][3] * ndcZ + Q[3][3]);
+          return view * invW;
+        #endif
     }
     #include <common>
     #define NUM_SAMPLES 16
@@ -984,13 +1005,19 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
         if (logDepth && !ortho) {
           return getWorldPosLog(vec3(coord, depth));
         }
-        float z = depth * 2.0 - 1.0;
-        vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
-        vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
-        // Perspective division
-       vec4 worldSpacePosition = viewSpacePosition;
-       worldSpacePosition.xyz /= worldSpacePosition.w;
-        return worldSpacePosition.xyz;
+        if (ortho) {
+          float z = depth * 2. - 1.;
+          vec4 clipSpacePosition = vec4(coord * 2. - 1., z, 1.);
+          vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
+          viewSpacePosition.xyz /= viewSpacePosition.w;
+          return viewSpacePosition.xyz;
+        }
+        vec2 ndc = coord * 2. - 1.;
+        float ndcZ = depth * 2. - 1.;
+        mat4 Q = projectionMatrixInv;
+        vec3 view = vec3(Q[0][0] * ndc.x + Q[3][0], Q[1][1] * ndc.y + Q[3][1], Q[3][2]);
+        float invW = 1. / (Q[2][3] * ndcZ + Q[3][3]);
+        return view * invW;
     }
   
     vec3 computeNormal(vec3 worldPos, vec2 vUv) {

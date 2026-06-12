@@ -104,13 +104,20 @@ uniform sampler2D bluenoise;
           return getWorldPosLog(vec3(coord, depth));
         #endif
       #endif
-      float z = depth * 2.0 - 1.0;
-      vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
-      vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
-      // Perspective division
-     vec4 worldSpacePosition = viewSpacePosition;
-     worldSpacePosition.xyz /= worldSpacePosition.w;
-      return worldSpacePosition.xyz;
+      #ifdef ORTHO
+        float z = depth * 2. - 1.;
+        vec4 clipSpacePosition = vec4(coord * 2. - 1., z, 1.);
+        vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
+        viewSpacePosition.xyz /= viewSpacePosition.w;
+        return viewSpacePosition.xyz;
+      #else
+        vec2 ndc = coord * 2. - 1.;
+        float ndcZ = depth * 2. - 1.;
+        mat4 Q = projectionMatrixInv;
+        vec3 view = vec3(Q[0][0] * ndc.x + Q[3][0], Q[1][1] * ndc.y + Q[3][1], Q[3][2]);
+        float invW = 1. / (Q[2][3] * ndcZ + Q[3][3]);
+        return view * invW;
+      #endif
   }
 
   vec3 computeNormal(vec3 worldPos, vec2 vUv) {

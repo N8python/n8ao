@@ -182,9 +182,9 @@ const EffectCompositer = {
         float depth = texture2D(sceneDepth, vUv).x;
         #endif
         #ifdef HALFRES 
-        vec4 texel;
+        vec4 texel = vec4(0.0);
         if (depth == 1.0) {
-            texel = texture2D(tDiffuse, vUv);
+            texel = vec4(1.0, 0.0, 0.0, 1.0);
         } else {
         vec3 worldPos = getWorldPos(depth, vUv);
         vec3 normal = computeNormal(getWorldPos(depth, vUv), vUv);

@@ -47,6 +47,7 @@ class N8AOPostPass extends Pass {
         this.height = height;
 
         this.clear = true;
+        this._neuralDenoiseWarningKey = null;
 
         this.camera = camera;
         this.scene = scene;
@@ -66,7 +67,8 @@ class N8AOPostPass extends Pass {
          * screenSpaceRadius: boolean,
          * halfRes: boolean,
          * depthAwareUpsampling: boolean
-         * colorMultiply: boolean
+         * colorMultiply: boolean,
+         * neuralDenoise: boolean
          * }
          */
         this.autosetGamma = true;
@@ -90,7 +92,8 @@ class N8AOPostPass extends Pass {
             depthAwareUpsampling: true,
             colorMultiply: true,
             transparencyAware: false,
-            accumulate: false
+            accumulate: false,
+            neuralDenoise: false
         }, {
             set: (target, propName, value) => {
                 const oldProp = target[propName];
@@ -108,6 +111,28 @@ class N8AOPostPass extends Pass {
                     this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 }
                 if (propName === 'denoiseSamples' && oldProp !== value) {
+                    this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+                }
+                if (propName === 'neuralDenoise' && oldProp !== value) {
+                    const reconfigureAO = value && (target.aoSamples !== 16 || target.halfRes);
+                    const disableHalfRes = value && target.halfRes;
+                    if (value) {
+                        target.aoSamples = 16;
+                        if (![4, 8, 16].includes(target.denoiseSamples)) {
+                            target.denoiseSamples = 8;
+                        }
+                        target.denoiseRadius = 12;
+                        target.denoiseIterations = 2;
+                        target.halfRes = false;
+                    }
+                    if (reconfigureAO) {
+                        this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+                    }
+                    if (disableHalfRes) {
+                        this.configureHalfResTargets();
+                        this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+                        this.setSize(this.width, this.height);
+                    }
                     this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 }
                 if (propName === "halfRes" && oldProp !== value) {
@@ -432,7 +457,10 @@ class N8AOPostPass extends Pass {
         this.firstFrame();
         this.samplesDenoise = this.generateDenoiseSamples(this.configuration.denoiseSamples, 11);
         const p = {...PoissionBlur };
-        p.fragmentShader = p.fragmentShader.replace("16", this.configuration.denoiseSamples);
+        p.fragmentShader = p.fragmentShader.replace(
+            "__N8AO_DENOISE_SAMPLES__",
+            this.configuration.denoiseSamples
+        );
         if (depthBufferType === DepthType.Log) {
             p.fragmentShader = "#define LOGDEPTH\n" + p.fragmentShader;
         } else if (depthBufferType === DepthType.Reverse) {
@@ -441,12 +469,67 @@ class N8AOPostPass extends Pass {
         if (ortho) {
             p.fragmentShader = "#define ORTHO\n" + p.fragmentShader;
         }
-        if (this.poissonBlurQuad) {
-            this.poissonBlurQuad.material.dispose();
-            this.poissonBlurQuad.material = new THREE.ShaderMaterial(p);
-        } else {
-            this.poissonBlurQuad = new FullScreenTriangle(new THREE.ShaderMaterial(p));
+        if (this.standardDenoiseMaterial) {
+            this.standardDenoiseMaterial.dispose();
         }
+        if (this.neuralDenoiseMaterial) {
+            this.neuralDenoiseMaterial.dispose();
+        }
+        this.standardDenoiseMaterial = new THREE.ShaderMaterial(p);
+        this.neuralDenoiseMaterial = this.configuration.neuralDenoise
+            && [4, 8, 16].includes(this.configuration.denoiseSamples)
+            ? new THREE.ShaderMaterial({
+                ...p,
+                glslVersion: THREE.GLSL3,
+                fragmentShader: "#define NEURAL_DENOISE\n"
+                    + "layout(location = 0) out highp vec4 neuralFragColor;\n"
+                    + "#define gl_FragColor neuralFragColor\n"
+                    + p.fragmentShader
+            })
+            : null;
+        if (this.poissonBlurQuad) {
+            this.poissonBlurQuad.material = this.standardDenoiseMaterial;
+        } else {
+            this.poissonBlurQuad = new FullScreenTriangle(this.standardDenoiseMaterial);
+        }
+    }
+    shouldUseNeuralDenoise() {
+        if (!this.configuration.neuralDenoise) {
+            this._neuralDenoiseWarningKey = null;
+            return false;
+        }
+
+        const incompatibilities = [];
+        if (this.configuration.aoSamples !== 16) {
+            incompatibilities.push(`aoSamples is ${this.configuration.aoSamples} (expected 16)`);
+        }
+        if (![4, 8, 16].includes(this.configuration.denoiseSamples)) {
+            incompatibilities.push(`denoiseSamples is ${this.configuration.denoiseSamples} (expected 4, 8, or 16)`);
+        }
+        if (this.configuration.denoiseRadius !== 12) {
+            incompatibilities.push(`denoiseRadius is ${this.configuration.denoiseRadius} (expected 12)`);
+        }
+        if (this.configuration.denoiseIterations !== 2) {
+            incompatibilities.push(`denoiseIterations is ${this.configuration.denoiseIterations} (expected 2)`);
+        }
+        if (this.configuration.halfRes) {
+            incompatibilities.push('halfRes is enabled (expected full resolution)');
+        }
+
+        if (incompatibilities.length > 0) {
+            const warningKey = incompatibilities.join('; ');
+            if (warningKey !== this._neuralDenoiseWarningKey) {
+                console.warn(
+                    `[N8AO] neuralDenoise is enabled but cannot run: ${warningKey}. `
+                    + 'Neural denoising has been disabled; standard denoising will be used.'
+                );
+                this._neuralDenoiseWarningKey = warningKey;
+            }
+            return false;
+        }
+
+        this._neuralDenoiseWarningKey = null;
+        return this.neuralDenoiseMaterial !== null;
     }
     configureEffectCompositer(depthBufferType = DepthType.Default, ortho = false) {
             this.firstFrame();
@@ -545,8 +628,15 @@ class N8AOPostPass extends Pass {
             //  this.copyQuad.material.uniforms.tDiffuse.value = inputBuffer.texture;
             //   this.copyQuad.render(renderer);
 
-            if (renderer.capabilities.logarithmicDepthBuffer && this.configuration.depthBufferType !== DepthType.Log || renderer.capabilities.reverseDepthBuffer && this.configuration.depthBufferType !== DepthType.Reverse) {
-                this.configuration.depthBufferType = renderer.capabilities.logarithmicDepthBuffer ? DepthType.Log : renderer.capabilities.reverseDepthBuffer ? DepthType.Reverse : DepthType.Default;
+            const rendererUsesReverseDepth = renderer.capabilities.reversedDepthBuffer === true
+                || renderer.capabilities.reverseDepthBuffer === true;
+            const rendererDepthType = rendererUsesReverseDepth
+                ? DepthType.Reverse
+                : renderer.capabilities.logarithmicDepthBuffer
+                    ? DepthType.Log
+                    : DepthType.Default;
+            if (this.configuration.depthBufferType !== rendererDepthType) {
+                this.configuration.depthBufferType = rendererDepthType;
                 this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
@@ -605,7 +695,7 @@ class N8AOPostPass extends Pass {
                     this.depthDownsampleQuad.material.uniforms["far"].value = this.camera.far;
                     this.depthDownsampleQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
                     this.depthDownsampleQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-                    this.depthDownsampleQuad.material.uniforms["logDepth"].value = this.configuration.logarithmicDepthBuffer;
+                    this.depthDownsampleQuad.material.uniforms["logDepth"].value = this.configuration.depthBufferType === DepthType.Log;
                     this.depthDownsampleQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
                     this.depthDownsampleQuad.render(renderer);
                 }
@@ -635,8 +725,12 @@ class N8AOPostPass extends Pass {
                 this.effectShaderQuad.render(renderer);
                 // End the AO
                 // Start the blur
+                const useNeuralDenoise = this.shouldUseNeuralDenoise();
                 for (let i = 0; i < this.configuration.denoiseIterations; i++) {
                     [this.writeTargetInternal, this.readTargetInternal] = [this.readTargetInternal, this.writeTargetInternal];
+                    this.poissonBlurQuad.material = useNeuralDenoise && i === 1
+                        ? this.neuralDenoiseMaterial
+                        : this.standardDenoiseMaterial;
                     this.poissonBlurQuad.material.uniforms["tDiffuse"].value = this.readTargetInternal.texture;
                     this.poissonBlurQuad.material.uniforms["sceneDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.textures[0] : this.depthTexture;
                     this.poissonBlurQuad.material.uniforms["projMat"].value = this.camera.projectionMatrix;
@@ -763,29 +857,45 @@ class N8AOPostPass extends Pass {
         }
         /**
          * 
-         * @param {"Performance" | "Low" | "Medium" | "High" | "Ultra"} mode 
+         * @param {"Performance" | "Low" | "Medium" | "High" | "Ultra" | "Neural-Low" | "Neural-Medium" | "Neural-High"} mode
          */
     setQualityMode(mode) {
         if (mode === "Performance") {
+            this.configuration.neuralDenoise = false;
             this.configuration.aoSamples = 8;
             this.configuration.denoiseSamples = 4;
             this.configuration.denoiseRadius = 12;
         } else if (mode === "Low") {
+            this.configuration.neuralDenoise = false;
             this.configuration.aoSamples = 16;
             this.configuration.denoiseSamples = 4;
             this.configuration.denoiseRadius = 12;
         } else if (mode === "Medium") {
+            this.configuration.neuralDenoise = false;
             this.configuration.aoSamples = 16;
             this.configuration.denoiseSamples = 8;
             this.configuration.denoiseRadius = 12;
         } else if (mode === "High") {
+            this.configuration.neuralDenoise = false;
             this.configuration.aoSamples = 64;
             this.configuration.denoiseSamples = 8;
             this.configuration.denoiseRadius = 6;
         } else if (mode === "Ultra") {
+            this.configuration.neuralDenoise = false;
             this.configuration.aoSamples = 64;
             this.configuration.denoiseSamples = 16;
             this.configuration.denoiseRadius = 6;
+        } else if (["Neural-Low", "Neural-Medium", "Neural-High"].includes(mode)) {
+            this.configuration.aoSamples = 16;
+            this.configuration.denoiseSamples = {
+                "Neural-Low": 4,
+                "Neural-Medium": 8,
+                "Neural-High": 16
+            }[mode];
+            this.configuration.denoiseRadius = 12;
+            this.configuration.denoiseIterations = 2;
+            this.configuration.halfRes = false;
+            this.configuration.neuralDenoise = true;
         }
 
     }

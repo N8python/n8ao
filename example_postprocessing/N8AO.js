@@ -1,7 +1,10 @@
-import {Color as $5Whe3$Color, WebGLRenderTarget as $5Whe3$WebGLRenderTarget, LinearFilter as $5Whe3$LinearFilter, NearestFilter as $5Whe3$NearestFilter, HalfFloatType as $5Whe3$HalfFloatType, RGBAFormat as $5Whe3$RGBAFormat, DepthTexture as $5Whe3$DepthTexture, UnsignedInt248Type as $5Whe3$UnsignedInt248Type, UnsignedIntType as $5Whe3$UnsignedIntType, DepthStencilFormat as $5Whe3$DepthStencilFormat, DepthFormat as $5Whe3$DepthFormat, Matrix4 as $5Whe3$Matrix4, DataTexture as $5Whe3$DataTexture, ShaderMaterial as $5Whe3$ShaderMaterial, NoColorSpace as $5Whe3$NoColorSpace, RepeatWrapping as $5Whe3$RepeatWrapping, Vector2 as $5Whe3$Vector2, REVISION as $5Whe3$REVISION, RedFormat as $5Whe3$RedFormat, FloatType as $5Whe3$FloatType, Vector3 as $5Whe3$Vector3, Sphere as $5Whe3$Sphere, BufferAttribute as $5Whe3$BufferAttribute, BufferGeometry as $5Whe3$BufferGeometry, OrthographicCamera as $5Whe3$OrthographicCamera, Mesh as $5Whe3$Mesh} from "three";
+import {Color as $5Whe3$Color, WebGLRenderTarget as $5Whe3$WebGLRenderTarget, LinearFilter as $5Whe3$LinearFilter, NearestFilter as $5Whe3$NearestFilter, HalfFloatType as $5Whe3$HalfFloatType, RGBAFormat as $5Whe3$RGBAFormat, DepthTexture as $5Whe3$DepthTexture, UnsignedInt248Type as $5Whe3$UnsignedInt248Type, UnsignedIntType as $5Whe3$UnsignedIntType, DepthStencilFormat as $5Whe3$DepthStencilFormat, DepthFormat as $5Whe3$DepthFormat, Matrix4 as $5Whe3$Matrix4, DataTexture as $5Whe3$DataTexture, ShaderMaterial as $5Whe3$ShaderMaterial, NoColorSpace as $5Whe3$NoColorSpace, RepeatWrapping as $5Whe3$RepeatWrapping, Vector2 as $5Whe3$Vector2, REVISION as $5Whe3$REVISION, RedFormat as $5Whe3$RedFormat, FloatType as $5Whe3$FloatType, GLSL3 as $5Whe3$GLSL3, Vector3 as $5Whe3$Vector3, Sphere as $5Whe3$Sphere, BufferAttribute as $5Whe3$BufferAttribute, BufferGeometry as $5Whe3$BufferGeometry, OrthographicCamera as $5Whe3$OrthographicCamera, Mesh as $5Whe3$Mesh} from "three";
 import {Pass as $5Whe3$Pass} from "three/examples/jsm/postprocessing/Pass.js";
 import {Pass as $5Whe3$Pass1} from "postprocessing";
 
+function $parcel$interopDefault(a) {
+  return a && a.__esModule ? a.default : a;
+}
 
 
 
@@ -190,6 +193,20 @@ uniform sampler2D bluenoise;
       vec4 wpos = projectionMatrixInv * clipVec;
       return wpos.xyz / wpos.w;
     }
+    float depthToClipZ(float depth) {
+      #ifdef REVERSEDEPTH
+        return depth;
+      #else
+        return depth * 2.0 - 1.0;
+      #endif
+    }
+    bool isBackgroundDepth(float depth) {
+      #ifdef REVERSEDEPTH
+        return depth == 0.0;
+      #else
+        return depth == 1.0;
+      #endif
+    }
     vec3 getWorldPos(float depth, vec2 coord) {
       #ifdef LOGDEPTH
         #ifndef ORTHO
@@ -197,14 +214,14 @@ uniform sampler2D bluenoise;
         #endif
       #endif
       #ifdef ORTHO
-        float z = depth * 2. - 1.;
+        float z = depthToClipZ(depth);
         vec4 clipSpacePosition = vec4(coord * 2. - 1., z, 1.);
         vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
         viewSpacePosition.xyz /= viewSpacePosition.w;
         return viewSpacePosition.xyz;
       #else
         vec2 ndc = coord * 2. - 1.;
-        float ndcZ = depth * 2. - 1.;
+        float ndcZ = depthToClipZ(depth);
         mat4 Q = projectionMatrixInv;
         vec3 view = vec3(Q[0][0] * ndc.x + Q[3][0], Q[1][1] * ndc.y + Q[3][1], Q[3][2]);
         float invW = 1. / (Q[2][3] * ndcZ + Q[3][3]);
@@ -214,17 +231,6 @@ uniform sampler2D bluenoise;
 
   vec3 computeNormal(vec3 worldPos, vec2 vUv) {
     ivec2 p = ivec2(vUv * resolution);
-    #ifdef REVERSEDEPTH
-    float c0 = 1.0 - texelFetch(sceneDepth, p, 0).x;
-    float l2 = 1.0 - texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
-    float l1 = 1.0 - texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
-    float r1 = 1.0 - texelFetch(sceneDepth, p + ivec2(1, 0), 0).x;
-    float r2 = 1.0 - texelFetch(sceneDepth, p + ivec2(2, 0), 0).x;
-    float b2 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 2), 0).x;
-    float b1 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
-    float t1 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
-    float t2 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
-    #else
     float c0 = texelFetch(sceneDepth, p, 0).x;
     float l2 = texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
     float l1 = texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
@@ -234,7 +240,6 @@ uniform sampler2D bluenoise;
     float b1 = texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
     float t1 = texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
     float t2 = texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
-    #endif
 
     float dl = abs((2.0 * l1 - l2) - c0);
     float dr = abs((2.0 * r1 - r2) - c0);
@@ -261,12 +266,8 @@ mat3 makeRotationZ(float theta) {
 
 void main() {
       vec4 diffuse = texture2D(sceneDiffuse, vUv);
-      #ifdef REVERSEDEPTH
-      float depth = 1.0 - texture2D(sceneDepth, vUv).x;
-      #else
       float depth = texture2D(sceneDepth, vUv).x;
-      #endif
-      if (depth == 1.0) {
+      if (isBackgroundDepth(depth)) {
         gl_FragColor = vec4(vec3(1.0), 1.0);
         return;
       }
@@ -319,14 +320,13 @@ void main() {
         vec3 samplePos = worldPos + radiusToUse * moveAmt * sampleDirection;
         vec4 offset = projMat * vec4(samplePos, 1.0);
         offset.xyz /= offset.w;
-        offset.xyz = offset.xyz * 0.5 + 0.5;
+        offset.xy = offset.xy * 0.5 + 0.5;
+        #ifndef REVERSEDEPTH
+        offset.z = offset.z * 0.5 + 0.5;
+        #endif
         
         if (all(greaterThan(offset.xyz * (1.0 - offset.xyz), vec3(0.0)))) {
-          #ifdef REVERSEDEPTH
-          float sampleDepth = 1.0 - textureLod(sceneDepth, offset.xy, 0.0).x;
-          #else
           float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;
-          #endif
 
           /*#ifdef LOGDEPTH
           float distSample = linearize_depth_log(sampleDepth, near, far);
@@ -337,20 +337,28 @@ void main() {
               float distSample = (farTimesNear) / (far - sampleDepth * farMinusNear);
           #endif
       #endif*/
-      #ifdef ORTHO
-          float distSample = near + sampleDepth * farMinusNear;
+      #ifdef REVERSEDEPTH
+          float distSample = -getWorldPos(sampleDepth, offset.xy).z;
       #else
+        #ifdef ORTHO
+          float distSample = near + sampleDepth * farMinusNear;
+        #else
           #ifdef LOGDEPTH
               float distSample = linearize_depth_log(sampleDepth, near, far);
           #else
               float distSample = (farTimesNear) / (far - sampleDepth * farMinusNear);
           #endif
+        #endif
       #endif
       
-      #ifdef ORTHO
-          float distWorld = near + offset.z * farMinusNear;
+      #ifdef REVERSEDEPTH
+          float distWorld = -samplePos.z;
       #else
+        #ifdef ORTHO
+          float distWorld = near + offset.z * farMinusNear;
+        #else
           float distWorld = (farTimesNear) / (far - offset.z * farMinusNear);
+        #endif
       #endif
           
           mediump float rangeCheck = smoothstep(0.0, 1.0, distanceFalloffToUse / (abs(distSample - distWorld)));
@@ -543,6 +551,20 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
         vec4 wpos = projectionMatrixInv * clipVec;
         return wpos.xyz / wpos.w;
       }
+      float depthToClipZ(float depth) {
+        #ifdef REVERSEDEPTH
+          return depth;
+        #else
+          return depth * 2.0 - 1.0;
+        #endif
+      }
+      bool isBackgroundDepth(float depth) {
+        #ifdef REVERSEDEPTH
+          return depth == 0.0;
+        #else
+          return depth == 1.0;
+        #endif
+      }
       vec3 getWorldPos(float depth, vec2 coord) {
         #ifdef LOGDEPTH
           #ifndef ORTHO
@@ -551,14 +573,14 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
         #endif
       //  }
         #ifdef ORTHO
-          float z = depth * 2. - 1.;
+          float z = depthToClipZ(depth);
           vec4 clipSpacePosition = vec4(coord * 2. - 1., z, 1.);
           vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
           viewSpacePosition.xyz /= viewSpacePosition.w;
           return viewSpacePosition.xyz;
         #else
           vec2 ndc = coord * 2. - 1.;
-          float ndcZ = depth * 2. - 1.;
+          float ndcZ = depthToClipZ(depth);
           mat4 Q = projectionMatrixInv;
           vec3 view = vec3(Q[0][0] * ndc.x + Q[3][0], Q[1][1] * ndc.y + Q[3][1], Q[3][2]);
           float invW = 1. / (Q[2][3] * ndcZ + Q[3][3]);
@@ -568,17 +590,6 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
   
     vec3 computeNormal(vec3 worldPos, vec2 vUv) {
       ivec2 p = ivec2(vUv * resolution);
-      #ifdef REVERSEDEPTH
-      float c0 = 1.0 - texelFetch(sceneDepth, p, 0).x;
-      float l2 = 1.0 - texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
-      float l1 = 1.0 - texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
-      float r1 = 1.0 - texelFetch(sceneDepth, p + ivec2(1, 0), 0).x;
-      float r2 = 1.0 - texelFetch(sceneDepth, p + ivec2(2, 0), 0).x;
-      float b2 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 2), 0).x;
-      float b1 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
-      float t1 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
-      float t2 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
-      #else
       float c0 = texelFetch(sceneDepth, p, 0).x;
       float l2 = texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
       float l1 = texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
@@ -588,7 +599,6 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
       float b1 = texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
       float t1 = texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
       float t2 = texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
-      #endif
   
       float dl = abs((2.0 * l1 - l2) - c0);
       float dr = abs((2.0 * r1 - r2) - c0);
@@ -610,14 +620,10 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
     void main() {
         //vec4 texel = texture2D(tDiffuse, vUv);//vec3(0.0);
         vec4 sceneTexel = texture2D(sceneDiffuse, vUv);
-        #ifdef REVERSEDEPTH
-        float depth = 1.0 - texture2D(sceneDepth, vUv).x;
-        #else
         float depth = texture2D(sceneDepth, vUv).x;
-        #endif
         #ifdef HALFRES 
         vec4 texel = vec4(0.0);
-        if (depth == 1.0) {
+        if (isBackgroundDepth(depth)) {
             texel = vec4(1.0, 0.0, 0.0, 1.0);
         } else {
         vec3 worldPos = getWorldPos(depth, vUv);
@@ -688,13 +694,8 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
             float transparencyDWOff = texture2D(transparencyDWFalse, vUv).a;
             float transparencyDWOn = texture2D(transparencyDWTrue, vUv).a;
             float adjustmentFactorOff = transparencyDWOff;
-            #ifdef REVERSEDEPTH
-            float depthSample = 1.0 - texture2D(sceneDepth, vUv).r;
-            float trueDepthSample = 1.0 - texture2D(transparencyDWTrueDepth, vUv).r;
-            #else
             float depthSample = texture2D(sceneDepth, vUv).r;
             float trueDepthSample = texture2D(transparencyDWTrueDepth, vUv).r;
-            #endif
             float adjustmentFactorOn = (1.0 - transparencyDWOn) * (
                 trueDepthSample == depthSample ? 1.0 : 0.0
             );
@@ -734,6 +735,223 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
     `
 };
 
+
+
+var $62561e92e160ec9a$exports = {};
+$62561e92e160ec9a$exports = JSON.parse('{"architecture":"attention-v3-int8","formatVersion":3,"globalBias":[-0.32877659797668457,0.4370867609977722,-0.05251404270529747,1.3072023391723633,0.0477047860622406,0.24477416276931763,0.009111796505749226,-0.17459993064403534],"globalFeatureInverseStandardDeviation":[10.771836280822754,1.9548665285110474,1.612365484237671],"globalFeatureMean":[0.9198138117790222,-0.49808526039123535,0.03374629095196724],"globalWeights":[101,-4,7,-127,6,-11,3,1,0,-16,-7,8,-8,-1,7,-4,0,0,-12,-3,-13,1,0,2],"headBias":[-0.15895532071590424,0.007501596584916115,-0.47742825746536255,0.01632097363471985,-0.48355796933174133,-0.1052703931927681,-0.8414919376373291,-0.21046382188796997],"headWeights":[-45,-7,-45,-20,7,-13,120,-24,-15,-26,-19,1,27,-48,-4,-10,1,-5,-24,64,91,-1,-68,39,54,39,101,-40,-127,64,-41,-17,-23,-19,3,35,-2,33,3,9,-64,-32,30,42,-112,12,28,-11,15,2,-4,-7,7,-3,-5,1,76,48,-34,-67,103,-40,-26,1,58,-11,46,-41,5,-6,-17,-8,13,17,-35,45,27,-17,-28,7,-53,12,-51,6,-32,-5,58,-9,-28,-21,37,-12,1,20,2,2,11,7,-4,-9,2,-15,-1,-8,16,12,-27,-1,61,-5,-1,4,-7,-2,7,4,1,4,-2,4,-18,-16,28,6,-65,16,3,-3,-5,-2,0,-40,-21,-22,14,30,-21,49,15,-64,43,19,23,18,5,-15,21,21,30,17,-11,-6,22,-38,-20,97,-46,-5,-13,-59,26,-13,11,-2,-10,-8,2,-15,-17,-27,-9,26,7,-7,6,9,-32,5,-9,12,49,17,-1,24,20,35,14,-33,-50,-1,-4,-26,11,11,9,-80,30,9,36,6,-12,-4,-7,39,-10,-30,-49,1,-43,-20,-34,76,-36,-10,15,-8,43,31,38,-42,39,37,-7,7,8,16,28,-83,32,9,23,-13,39,119,23,-127,-24,8,-48,-29,-7,-33,-12,58,-24,-29,-19,12,-55,-90,0,126,26,42,54,22],"keyProjectionWeights":[0,-1,-1,1,1,1,1,1,-64,32,49,23,-25,4,27,-22,0,1,-1,-1,-1,1,1,0,-34,38,64,88,13,-53,-41,58,-7,-4,79,-41,27,26,14,2,-2,1,1,1,-1,-1,1,1,1,-1,-1,-1,-1,-1,1,1,4,-3,126,42,-40,-116,35,20],"name":"residual-attention-v3-50m-qat-int8-epoch-25-zo-278w","outputBias":-0.0005526235327124596,"outputWeights":[11,11,14,-27,9,-22,127,6],"quantization":{"scales":{"globalWeight":0.021090541950849095,"headWeight":0.04935851140909355,"keyWeight":0.1733924937791441,"outputWeight":0.0030087142047955295,"tapInputWeight":0.1096231754049479,"tapOutputWeight":0.017949438644286102,"valueWeight":0.013986751242596301},"scheme":"symmetric-int8-per-tensor","zeroPoint":0},"summaryQueries":[0.0038647791370749474,0.09565000981092453,0.002756686182692647,-0.08183622360229492,-0.15209506452083588,-0.0006105066277086735,0.0010439646430313587,-0.03020688332617283,0.005065929610282183,0.14488759636878967,0.003160916268825531,-0.0855727270245552,-0.3123375475406647,0.00039022407145239413,0.0037786494940519333,0.1451321840286255,-0.002009483054280281,0.0597594790160656,0.0045239729806780815,-0.08765853196382523,-0.13884992897510529,-0.0021647117100656033,0.003985927440226078,0.09727758169174194,0.007170629221946001,0.0786278173327446,0.004103775601834059,-0.1198369711637497,-0.2925199568271637,-0.002055276418104768,0.0030450925696641207,0.14401987195014954],"supportedDenoiseSamples":[4,8,16],"tapFeatureInverseStandardDeviation":[2.283243417739868,0.8810898065567017,0.8210930228233337,3.752316474914551,3.6375720500946045,2.670454978942871,10.249449729919434,0.12639354169368744,100],"tapFeatureMean":[0.010318092070519924,0.01364430133253336,0.13411010801792145,-0.004725644364953041,0.10053129494190216,0.8384788632392883,0.9203217625617981,1.7139031887054443,1],"tapInputBias":[0.4780646860599518,-0.45214661955833435,0.289407879114151,0.34804567694664,-0.1320028454065323,0.17722633481025696,0.011480014771223068,-0.26692497730255127],"tapInputWeights":[0,1,7,0,-1,-7,0,31,-2,-1,14,-126,0,0,-1,2,26,-2,0,66,-73,0,0,0,-12,22,-3,0,-76,-90,0,-1,-7,-3,58,-1,0,2,6,0,0,3,4,-40,0,0,3,-13,0,0,1,-7,-13,0,0,-7,10,0,-2,-7,0,-39,-2,0,-13,-19,0,-2,20,-1,3,-1],"tapOutputBias":[-0.3867710530757904,0.1349504142999649,0.35706064105033875,-0.5938405394554138,-0.031154220923781395,1.4079623222351074,-1.9221038818359375,0.6029739379882812],"tapOutputWeights":[18,-4,47,19,74,-94,-21,-9,73,-59,88,-10,-3,71,-7,24,20,74,24,-31,-12,-10,-15,-45,-126,2,-4,27,-5,24,35,-11,-4,9,-8,26,-10,27,26,-20,17,-50,5,-35,0,-5,12,-71,89,-58,22,-83,-115,7,-16,-89,89,22,1,-20,-22,-25,-26,44],"valueProjectionWeights":[-16,-6,40,-17,84,-76,59,51,-10,-2,-10,-1,-23,74,-70,23,-5,4,4,-7,-77,127,20,-48,-36,4,-17,-12,-4,10,29,-27,-2,11,-47,-50,-54,-3,14,11,-23,-1,109,31,4,-100,-33,-36,-19,0,-8,20,-35,-24,79,2,44,2,5,7,22,-70,-67,-35]}');
+
+
+const $1193f60a44983e43$var$MATRIX_LAYOUTS = [
+    [
+        "tapInputWeight",
+        "tapInputWeights",
+        8,
+        9
+    ],
+    [
+        "tapOutputWeight",
+        "tapOutputWeights",
+        8,
+        8
+    ],
+    [
+        "globalWeight",
+        "globalWeights",
+        8,
+        3
+    ],
+    [
+        "keyWeight",
+        "keyProjectionWeights",
+        8,
+        8
+    ],
+    [
+        "valueWeight",
+        "valueProjectionWeights",
+        8,
+        8
+    ],
+    [
+        "headWeight",
+        "headWeights",
+        8,
+        32
+    ],
+    [
+        "outputWeight",
+        "outputWeights",
+        1,
+        8
+    ]
+];
+const $1193f60a44983e43$var$scale = (name)=>{
+    const value = (0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).quantization?.scales?.[name];
+    if (!(value > 0) || !Number.isFinite(value)) throw new Error(`The bundled N8AO neural model has no valid ${name} scale.`);
+    return value;
+};
+if ((0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).architecture !== "attention-v3-int8" || (0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).formatVersion !== 3 || (0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).quantization?.scheme !== "symmetric-int8-per-tensor" || (0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).quantization?.zeroPoint !== 0 || (0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).supportedDenoiseSamples?.join(",") !== "4,8,16" || $1193f60a44983e43$var$MATRIX_LAYOUTS.some(([, field, rows, columns])=>(0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports)))[field]?.length !== rows * columns || (0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports)))[field].some((value)=>!Number.isInteger(value) || value < -127 || value > 127))) throw new Error("The bundled N8AO neural denoise model has an unsupported layout.");
+const $1193f60a44983e43$var$glslFloat = (value)=>{
+    if (!Number.isFinite(value)) throw new Error("The bundled N8AO neural model contains a non-finite value.");
+    if (Object.is(value, -0)) return "0.0";
+    const text = Number(value).toString();
+    return /[.eE]/.test(text) ? text : `${text}.0`;
+};
+const $1193f60a44983e43$var$COMPONENTS = [
+    "x",
+    "y",
+    "z",
+    "w"
+];
+const $1193f60a44983e43$var$tokenAccessors = (name)=>[
+        ...$1193f60a44983e43$var$COMPONENTS.map((component)=>`${name}.lo.${component}`),
+        ...$1193f60a44983e43$var$COMPONENTS.map((component)=>`${name}.hi.${component}`)
+    ];
+const $1193f60a44983e43$var$weightedTerm = (coefficient, input)=>{
+    if (coefficient === 0) return null;
+    if (coefficient === 1) return input;
+    if (coefficient === -1) return `(-${input})`;
+    if (coefficient < 0) return `(-${$1193f60a44983e43$var$glslFloat(-coefficient)} * ${input})`;
+    return `${$1193f60a44983e43$var$glslFloat(coefficient)} * ${input}`;
+};
+const $1193f60a44983e43$var$floatWeightedTerm = (coefficient, input)=>{
+    if (coefficient === 0) return null;
+    return `${$1193f60a44983e43$var$glslFloat(coefficient)} * ${input}`;
+};
+const $1193f60a44983e43$var$sumTerms = (terms)=>terms.filter(Boolean).join(" + ") || "0.0";
+const $1193f60a44983e43$var$quantizedRow = (weights, row, width, inputs, tensorScale, bias)=>{
+    const terms = inputs.map((input, column)=>$1193f60a44983e43$var$weightedTerm(weights[row * width + column], input));
+    return `${$1193f60a44983e43$var$glslFloat(tensorScale)} * (${$1193f60a44983e43$var$sumTerms(terms)}) + ${$1193f60a44983e43$var$glslFloat(bias[row])}`;
+};
+const $1193f60a44983e43$var$vec4 = (values, indent = "        ")=>`vec4(\n${values.map((value)=>`${indent}    ${value}`).join(",\n")}\n${indent})`;
+const $1193f60a44983e43$var$tokenLayer = ({ functionName: functionName , scaleName: scaleName , weights: weights , bias: bias , width: width = 8 , relu: relu = false  })=>{
+    const inputs = $1193f60a44983e43$var$tokenAccessors("inputToken");
+    const tensorScale = $1193f60a44983e43$var$scale(scaleName);
+    const rows = Array.from({
+        length: 8
+    }, (_, row)=>$1193f60a44983e43$var$quantizedRow(weights, row, width, inputs, tensorScale, bias));
+    const low = $1193f60a44983e43$var$vec4(rows.slice(0, 4));
+    const high = $1193f60a44983e43$var$vec4(rows.slice(4));
+    const wrap = (value)=>relu ? `max(${value}, vec4(0.0))` : value;
+    return `
+    NeuralToken neural${functionName[0].toUpperCase()}${functionName.slice(1)}(NeuralToken inputToken) {
+        return NeuralToken(
+            ${wrap(low)},
+            ${wrap(high)}
+        );
+    }
+`;
+};
+const $1193f60a44983e43$var$foldedBias = (weights, bias, means, inverseStandardDeviations, rows, width, tensorScale, constantInputs = {})=>Array.from({
+        length: rows
+    }, (_, row)=>{
+        let value = bias[row];
+        for(let column = 0; column < width; column++){
+            const weight = weights[row * width + column] * tensorScale;
+            value -= weight * inverseStandardDeviations[column] * means[column];
+            if (Object.hasOwn(constantInputs, column)) value += weight * inverseStandardDeviations[column] * constantInputs[column];
+        }
+        return value;
+    });
+const $1193f60a44983e43$var$tapInputScale = $1193f60a44983e43$var$scale("tapInputWeight");
+const $1193f60a44983e43$var$tapInputBias = $1193f60a44983e43$var$foldedBias((0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).tapInputWeights, (0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).tapInputBias, (0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).tapFeatureMean, (0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).tapFeatureInverseStandardDeviation, 8, 9, $1193f60a44983e43$var$tapInputScale, {
+    8: 1
+});
+const $1193f60a44983e43$var$tapScaledAccessors = $1193f60a44983e43$var$tokenAccessors("scaledInput");
+const $1193f60a44983e43$var$tapInputRows = Array.from({
+    length: 8
+}, (_, row)=>$1193f60a44983e43$var$quantizedRow((0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).tapInputWeights, row, 9, $1193f60a44983e43$var$tapScaledAccessors, $1193f60a44983e43$var$tapInputScale, $1193f60a44983e43$var$tapInputBias));
+const $1193f60a44983e43$var$tapInputShader = `
+    NeuralToken neuralTapInput(NeuralToken raw) {
+        NeuralToken scaledInput = NeuralToken(
+            raw.lo * ${$1193f60a44983e43$var$vec4((0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).tapFeatureInverseStandardDeviation.slice(0, 4), "            ")},
+            raw.hi * ${$1193f60a44983e43$var$vec4((0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).tapFeatureInverseStandardDeviation.slice(4, 8), "            ")}
+        );
+        return NeuralToken(
+            max(${$1193f60a44983e43$var$vec4($1193f60a44983e43$var$tapInputRows.slice(0, 4))}, vec4(0.0)),
+            max(${$1193f60a44983e43$var$vec4($1193f60a44983e43$var$tapInputRows.slice(4))}, vec4(0.0))
+        );
+    }
+`;
+const $1193f60a44983e43$var$globalScale = $1193f60a44983e43$var$scale("globalWeight");
+const $1193f60a44983e43$var$globalBias = $1193f60a44983e43$var$foldedBias((0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).globalWeights, (0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).globalBias, (0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).globalFeatureMean, (0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).globalFeatureInverseStandardDeviation, 8, 3, $1193f60a44983e43$var$globalScale);
+const $1193f60a44983e43$var$globalInputs = $1193f60a44983e43$var$COMPONENTS.slice(0, 3).map((component)=>`scaledInput.${component}`);
+const $1193f60a44983e43$var$globalRows = Array.from({
+    length: 8
+}, (_, row)=>$1193f60a44983e43$var$quantizedRow((0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).globalWeights, row, 3, $1193f60a44983e43$var$globalInputs, $1193f60a44983e43$var$globalScale, $1193f60a44983e43$var$globalBias));
+const $1193f60a44983e43$var$globalInputShader = `
+    NeuralToken neuralEncodeGlobal(vec4 raw) {
+        vec3 scaledInput = raw.xyz * vec3(
+            ${(0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).globalFeatureInverseStandardDeviation.map($1193f60a44983e43$var$glslFloat).join(", ")}
+        );
+        return NeuralToken(
+            max(${$1193f60a44983e43$var$vec4($1193f60a44983e43$var$globalRows.slice(0, 4))}, vec4(0.0)),
+            max(${$1193f60a44983e43$var$vec4($1193f60a44983e43$var$globalRows.slice(4))}, vec4(0.0))
+        );
+    }
+`;
+const $1193f60a44983e43$var$queryInputs = $1193f60a44983e43$var$tokenAccessors("key");
+const $1193f60a44983e43$var$queryRows = Array.from({
+    length: 4
+}, (_, query)=>$1193f60a44983e43$var$sumTerms($1193f60a44983e43$var$queryInputs.map((input, column)=>$1193f60a44983e43$var$floatWeightedTerm((0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).summaryQueries[query * 8 + column], input))));
+const $1193f60a44983e43$var$queryShader = `
+    vec4 neuralQueryScores(NeuralToken key) {
+        return ${$1193f60a44983e43$var$vec4($1193f60a44983e43$var$queryRows)};
+    }
+`;
+const $1193f60a44983e43$var$summaryInputs = [];
+for(let query = 0; query < 4; query++)$1193f60a44983e43$var$summaryInputs.push(...$1193f60a44983e43$var$COMPONENTS.map((component)=>`runningSummaryLo[${query}].${component}`), ...$1193f60a44983e43$var$COMPONENTS.map((component)=>`runningSummaryHi[${query}].${component}`));
+const $1193f60a44983e43$var$headScale = $1193f60a44983e43$var$scale("headWeight");
+const $1193f60a44983e43$var$headRows = Array.from({
+    length: 8
+}, (_, row)=>$1193f60a44983e43$var$quantizedRow((0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).headWeights, row, 32, $1193f60a44983e43$var$summaryInputs, $1193f60a44983e43$var$headScale, (0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).headBias));
+const $1193f60a44983e43$var$headShader = `
+    NeuralToken neuralHead(
+        vec4 runningSummaryLo[4],
+        vec4 runningSummaryHi[4]
+    ) {
+        return NeuralToken(
+            max(${$1193f60a44983e43$var$vec4($1193f60a44983e43$var$headRows.slice(0, 4))}, vec4(0.0)),
+            max(${$1193f60a44983e43$var$vec4($1193f60a44983e43$var$headRows.slice(4))}, vec4(0.0))
+        );
+    }
+`;
+const $1193f60a44983e43$var$outputExpression = $1193f60a44983e43$var$quantizedRow((0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).outputWeights, 0, 8, $1193f60a44983e43$var$tokenAccessors("head"), $1193f60a44983e43$var$scale("outputWeight"), [
+    (0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).outputBias
+]);
+const $1193f60a44983e43$var$outputShader = `
+    float neuralOutput(NeuralToken head) {
+        return ${$1193f60a44983e43$var$outputExpression};
+    }
+`;
+const $1193f60a44983e43$export$d75ad64dd346ec0e = [
+    $1193f60a44983e43$var$tapInputShader,
+    $1193f60a44983e43$var$tokenLayer({
+        functionName: "tapOutput",
+        scaleName: "tapOutputWeight",
+        weights: (0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).tapOutputWeights,
+        bias: (0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).tapOutputBias,
+        relu: true
+    }),
+    $1193f60a44983e43$var$globalInputShader,
+    $1193f60a44983e43$var$tokenLayer({
+        functionName: "keyProject",
+        scaleName: "keyWeight",
+        weights: (0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).keyProjectionWeights,
+        bias: new Array(8).fill(0)
+    }),
+    $1193f60a44983e43$var$tokenLayer({
+        functionName: "valueProject",
+        scaleName: "valueWeight",
+        weights: (0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports))).valueProjectionWeights,
+        bias: new Array(8).fill(0)
+    }),
+    $1193f60a44983e43$var$queryShader,
+    $1193f60a44983e43$var$headShader,
+    $1193f60a44983e43$var$outputShader
+].join("\n");
+const $1193f60a44983e43$export$788ba311f03a5564 = $1193f60a44983e43$var$MATRIX_LAYOUTS.reduce((sum, [, field])=>sum + (0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports)))[field].length, 0);
+const $1193f60a44983e43$export$dd4eb4d1095a3d82 = $1193f60a44983e43$var$MATRIX_LAYOUTS.reduce((sum, [, field])=>sum + (0, (/*@__PURE__*/$parcel$interopDefault($62561e92e160ec9a$exports)))[field].filter((value)=>value !== 0).length, 0);
 
 
 const $e52378cd0f5a973d$export$57856b59f317262e = {
@@ -822,7 +1040,7 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
      uniform float near;
      uniform float far;
      uniform float distanceFalloff;
-     uniform bool screenSpaceRadius;
+    uniform bool screenSpaceRadius;
     varying vec2 vUv;
 
     highp float linearize_depth(highp float d, highp float zNear,highp float zFar)
@@ -839,6 +1057,20 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
    }
    highp float linearize_depth_ortho(highp float d, highp float nearZ, highp float farZ) {
      return nearZ + (farZ - nearZ) * d;
+   }
+   float depthToClipZ(float depth) {
+     #ifdef REVERSEDEPTH
+       return depth;
+     #else
+       return depth * 2.0 - 1.0;
+     #endif
+   }
+   bool isBackgroundDepth(float depth) {
+     #ifdef REVERSEDEPTH
+       return depth == 0.0;
+     #else
+       return depth == 1.0;
+     #endif
    }
    vec3 getWorldPosLog(vec3 posS) {
      vec2 uv = posS.xy;
@@ -861,22 +1093,130 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
      #endif
         
         #ifdef ORTHO
-          float z = depth * 2. - 1.;
+          float z = depthToClipZ(depth);
           vec4 clipSpacePosition = vec4(coord * 2. - 1., z, 1.);
           vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
           viewSpacePosition.xyz /= viewSpacePosition.w;
           return viewSpacePosition.xyz;
         #else
           vec2 ndc = coord * 2. - 1.;
-          float ndcZ = depth * 2. - 1.;
+          float ndcZ = depthToClipZ(depth);
           mat4 Q = projectionMatrixInv;
           vec3 view = vec3(Q[0][0] * ndc.x + Q[3][0], Q[1][1] * ndc.y + Q[3][1], Q[3][2]);
           float invW = 1.0 / (Q[2][3] * ndcZ + Q[3][3]);
           return view * invW;
         #endif
     }
+
+#ifdef NEURAL_DENOISE
+    struct NeuralToken {
+        highp vec4 lo;
+        highp vec4 hi;
+    };
+
+    ${(0, $1193f60a44983e43$export$d75ad64dd346ec0e)}
+
+    vec3 neuralSafeNormalize(vec3 value, vec3 fallback) {
+        float lengthSquared = dot(value, value);
+        return lengthSquared > 1e-12 ? value * inversesqrt(lengthSquared) : fallback;
+    }
+
+    mat3 neuralLocalFrame(vec3 inputNormal) {
+        vec3 frameNormal = neuralSafeNormalize(inputNormal, vec3(0.0, 0.0, 1.0));
+        vec3 helper = abs(frameNormal.z) < 0.999
+            ? vec3(0.0, 0.0, 1.0)
+            : vec3(0.0, 1.0, 0.0);
+        vec3 tangent = neuralSafeNormalize(
+            cross(helper, frameNormal),
+            vec3(1.0, 0.0, 0.0)
+        );
+        vec3 bitangent = cross(frameNormal, tangent);
+        return transpose(mat3(tangent, bitangent, frameNormal));
+    }
+
+    void neuralConsumeToken(
+        NeuralToken token,
+        inout vec4 runningMaximum,
+        inout vec4 runningDenominator,
+        inout vec4 runningSummaryLo[4],
+        inout vec4 runningSummaryHi[4]
+    ) {
+        NeuralToken key = neuralKeyProject(token);
+        NeuralToken value = neuralValueProject(token);
+        vec4 score = neuralQueryScores(key) * 0.3535533905932738;
+        vec4 newMaximum = max(runningMaximum, score);
+        vec4 oldScale = exp(runningMaximum - newMaximum);
+        vec4 newScale = exp(score - newMaximum);
+
+        runningSummaryLo[0] = runningSummaryLo[0] * oldScale.x + value.lo * newScale.x;
+        runningSummaryHi[0] = runningSummaryHi[0] * oldScale.x + value.hi * newScale.x;
+        runningSummaryLo[1] = runningSummaryLo[1] * oldScale.y + value.lo * newScale.y;
+        runningSummaryHi[1] = runningSummaryHi[1] * oldScale.y + value.hi * newScale.y;
+        runningSummaryLo[2] = runningSummaryLo[2] * oldScale.z + value.lo * newScale.z;
+        runningSummaryHi[2] = runningSummaryHi[2] * oldScale.z + value.hi * newScale.z;
+        runningSummaryLo[3] = runningSummaryLo[3] * oldScale.w + value.lo * newScale.w;
+        runningSummaryHi[3] = runningSummaryHi[3] * oldScale.w + value.hi * newScale.w;
+        runningDenominator = runningDenominator * oldScale + newScale;
+        runningMaximum = newMaximum;
+    }
+
+    void neuralEncodeTap(
+        NeuralToken raw,
+        inout vec4 runningMaximum,
+        inout vec4 runningDenominator,
+        inout vec4 runningSummaryLo[4],
+        inout vec4 runningSummaryHi[4]
+    ) {
+        NeuralToken first = neuralTapInput(raw);
+        NeuralToken token = neuralTapOutput(first);
+        neuralConsumeToken(
+            token,
+            runningMaximum,
+            runningDenominator,
+            runningSummaryLo,
+            runningSummaryHi
+        );
+    }
+
+    float neuralFinish(
+        float baselineAO,
+        inout vec4 runningMaximum,
+        inout vec4 runningDenominator,
+        inout vec4 runningSummaryLo[4],
+        inout vec4 runningSummaryHi[4]
+    ) {
+        vec4 raw = vec4(
+            baselineAO,
+            log(max(worldRadius, 1e-6)),
+            log(max(distanceFalloff, 1e-6)),
+            0.0
+        );
+        NeuralToken token = neuralEncodeGlobal(raw);
+        neuralConsumeToken(
+            token,
+            runningMaximum,
+            runningDenominator,
+            runningSummaryLo,
+            runningSummaryHi
+        );
+
+        vec4 inverseDenominator = 1.0 / max(runningDenominator, vec4(1e-12));
+        runningSummaryLo[0] *= inverseDenominator.x;
+        runningSummaryHi[0] *= inverseDenominator.x;
+        runningSummaryLo[1] *= inverseDenominator.y;
+        runningSummaryHi[1] *= inverseDenominator.y;
+        runningSummaryLo[2] *= inverseDenominator.z;
+        runningSummaryHi[2] *= inverseDenominator.z;
+        runningSummaryLo[3] *= inverseDenominator.w;
+        runningSummaryHi[3] *= inverseDenominator.w;
+
+        NeuralToken head = neuralHead(runningSummaryLo, runningSummaryHi);
+        return neuralOutput(head);
+    }
+#endif
+
     #include <common>
-    #define NUM_SAMPLES 16
+    #define NUM_SAMPLES __N8AO_DENOISE_SAMPLES__
     uniform vec2 poissonDisk[NUM_SAMPLES];
     void main() {
         const float pi = 3.14159;
@@ -888,13 +1228,17 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
         vec3 normal = data.gba * 2.0 - 1.0;
         float count = 1.0;
         float d = texture2D(sceneDepth, vUv).x;
-        if (d == 1.0) {
+        if (isBackgroundDepth(d)) {
           gl_FragColor = data;
           return;
         }
         vec3 worldPos = getWorldPos(d, vUv);
         float size = radius;
         float angle;
+#ifdef NEURAL_DENOISE
+        // The neural material is only bound for denoise iteration two.
+        angle = texture2D(blueNoise, gl_FragCoord.xy / 128.0).z * PI2;
+#else
         if (index == 0.0) {
              angle = texture2D(blueNoise, gl_FragCoord.xy / 128.0).w * PI2;
         } else if (index == 1.0) {
@@ -904,6 +1248,7 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
         } else {
              angle = texture2D(blueNoise, gl_FragCoord.xy / 128.0).x * PI2;
         }
+#endif
 
         mat2 rotationMatrix = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
         float radiusToUse = screenSpaceRadius ? distance(
@@ -916,6 +1261,19 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
     : radiusToUse * distanceFalloff * 0.2;
 
         float invDistance = (1.0 / distanceFalloffToUse);
+#ifdef NEURAL_DENOISE
+        mat3 neuralWorldToLocal = neuralLocalFrame(normal);
+        float neuralInverseRadius = 1.0 / max(radiusToUse, 1e-6);
+        float neuralInverseDistance = 1.0 / max(distanceFalloffToUse, 1e-6);
+        vec4 neuralMaximum = vec4(-1e30);
+        vec4 neuralDenominator = vec4(0.0);
+        vec4 neuralSummaryLo[4];
+        vec4 neuralSummaryHi[4];
+        for (int query = 0; query < 4; query++) {
+            neuralSummaryLo[query] = vec4(0.0);
+            neuralSummaryHi[query] = vec4(0.0);
+        }
+#endif
         for(int i = 0; i < NUM_SAMPLES; i++) {
             vec2 offset = (rotationMatrix * poissonDisk[i]) * texelSize * size;
             vec4 dataSample = texture2D(tDiffuse, uv + offset);
@@ -924,9 +1282,33 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
             float dSample = texture2D(sceneDepth, uv + offset).x;
             vec3 worldPosSample = getWorldPos(dSample, uv + offset);
             float tangentPlaneDist = abs(dot(worldPosSample - worldPos, normal));
-            float rangeCheck = float(dSample != 1.0) * exp(-1.0 * tangentPlaneDist * invDistance ) * max(dot(normal, normalSample), 0.0);
+            float rangeCheck = float(!isBackgroundDepth(dSample)) * exp(-1.0 * tangentPlaneDist * invDistance ) * max(dot(normal, normalSample), 0.0);
             occlusion += occSample * rangeCheck;
             count += rangeCheck;
+#ifdef NEURAL_DENOISE
+            if (!isBackgroundDepth(dSample)) {
+                vec3 localDelta = (neuralWorldToLocal * (worldPosSample - worldPos))
+                    * neuralInverseRadius;
+                vec3 localNormal = neuralWorldToLocal
+                    * neuralSafeNormalize(normalSample, vec3(0.0, 0.0, 1.0));
+                NeuralToken rawTap = NeuralToken(
+                    vec4(localDelta, localNormal.x),
+                    vec4(
+                        localNormal.y,
+                        localNormal.z,
+                        occSample,
+                        tangentPlaneDist * neuralInverseDistance
+                    )
+                );
+                neuralEncodeTap(
+                    rawTap,
+                    neuralMaximum,
+                    neuralDenominator,
+                    neuralSummaryLo,
+                    neuralSummaryHi
+                );
+            }
+#endif
         }
         if (count > 0.0) {
           occlusion /= count;
@@ -935,6 +1317,19 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
         if (occlusion == 0.0) {
           occlusion = 1.0;
         }
+#ifdef NEURAL_DENOISE
+        occlusion = clamp(
+            occlusion + neuralFinish(
+                occlusion,
+                neuralMaximum,
+                neuralDenominator,
+                neuralSummaryLo,
+                neuralSummaryHi
+            ),
+            0.0,
+            1.0
+        );
+#endif
         gl_FragColor = vec4(occlusion, 0.5 + 0.5 * normal);
     }
     `
@@ -1006,14 +1401,22 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
           return getWorldPosLog(vec3(coord, depth));
         }
         if (ortho) {
+          #ifdef REVERSEDEPTH
+          float z = depth;
+          #else
           float z = depth * 2. - 1.;
+          #endif
           vec4 clipSpacePosition = vec4(coord * 2. - 1., z, 1.);
           vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
           viewSpacePosition.xyz /= viewSpacePosition.w;
           return viewSpacePosition.xyz;
         }
         vec2 ndc = coord * 2. - 1.;
+        #ifdef REVERSEDEPTH
+        float ndcZ = depth;
+        #else
         float ndcZ = depth * 2. - 1.;
+        #endif
         mat4 Q = projectionMatrixInv;
         vec3 view = vec3(Q[0][0] * ndc.x + Q[3][0], Q[1][1] * ndc.y + Q[3][1], Q[3][2]);
         float invW = 1. / (Q[2][3] * ndcZ + Q[3][3]);
@@ -1022,17 +1425,6 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
   
     vec3 computeNormal(vec3 worldPos, vec2 vUv) {
       ivec2 p = ivec2(vUv * resolution);
-      #ifdef REVERSEDEPTH
-      float c0 = 1.0 - texelFetch(sceneDepth, p, 0).x;
-      float l2 = 1.0 - texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
-      float l1 = 1.0 - texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
-      float r1 = 1.0 - texelFetch(sceneDepth, p + ivec2(1, 0), 0).x;
-      float r2 = 1.0 - texelFetch(sceneDepth, p + ivec2(2, 0), 0).x;
-      float b2 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 2), 0).x;
-      float b1 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
-      float t1 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
-      float t2 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
-      #else
       float c0 = texelFetch(sceneDepth, p, 0).x;
       float l2 = texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
       float l1 = texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
@@ -1042,7 +1434,6 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
       float b1 = texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
       float t1 = texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
       float t2 = texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
-      #endif
   
       float dl = abs((2.0 * l1 - l2) - c0);
       float dr = abs((2.0 * r1 - r2) - c0);
@@ -1066,17 +1457,10 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
         uvSamples[1] = uv + vec2(pixelSize.x, 0.0);
         uvSamples[2] = uv + vec2(0.0, pixelSize.y);
         uvSamples[3] = uv + pixelSize;
-        #ifdef REVERSEDEPTH
-        float depth00 = 1.0 - texture2D(sceneDepth, uvSamples[0]).r;
-        float depth10 = 1.0 - texture2D(sceneDepth, uvSamples[1]).r;
-        float depth01 = 1.0 - texture2D(sceneDepth, uvSamples[2]).r;
-        float depth11 = 1.0 - texture2D(sceneDepth, uvSamples[3]).r;
-        #else
         float depth00 = texture2D(sceneDepth, uvSamples[0]).r;
         float depth10 = texture2D(sceneDepth, uvSamples[1]).r;
         float depth01 = texture2D(sceneDepth, uvSamples[2]).r;
         float depth11 = texture2D(sceneDepth, uvSamples[3]).r;
-        #endif
         float minDepth = min(min(depth00, depth10), min(depth01, depth11));
         float maxDepth = max(max(depth00, depth10), max(depth01, depth11));
         float targetDepth = minDepth;
@@ -1210,6 +1594,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         this.width = width;
         this.height = height;
         this.clear = true;
+        this._neuralDenoiseWarningKey = null;
         this.camera = camera;
         this.scene = scene;
         /**
@@ -1228,7 +1613,8 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
          * screenSpaceRadius: boolean,
          * halfRes: boolean,
          * depthAwareUpsampling: boolean
-         * colorMultiply: boolean
+         * colorMultiply: boolean,
+         * neuralDenoise: boolean
          * }
          */ this.autosetGamma = true;
         this.configuration = new Proxy({
@@ -1251,7 +1637,8 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
             depthAwareUpsampling: true,
             colorMultiply: true,
             transparencyAware: false,
-            accumulate: false
+            accumulate: false,
+            neuralDenoise: false
         }, {
             set: (target, propName, value)=>{
                 const oldProp = target[propName];
@@ -1261,6 +1648,28 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
                 } else if (oldProp !== value) this.firstFrame();
                 if (propName === "aoSamples" && oldProp !== value) this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 if (propName === "denoiseSamples" && oldProp !== value) this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+                if (propName === "neuralDenoise" && oldProp !== value) {
+                    const reconfigureAO = value && (target.aoSamples !== 16 || target.halfRes);
+                    const disableHalfRes = value && target.halfRes;
+                    if (value) {
+                        target.aoSamples = 16;
+                        if (![
+                            4,
+                            8,
+                            16
+                        ].includes(target.denoiseSamples)) target.denoiseSamples = 8;
+                        target.denoiseRadius = 12;
+                        target.denoiseIterations = 2;
+                        target.halfRes = false;
+                    }
+                    if (reconfigureAO) this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+                    if (disableHalfRes) {
+                        this.configureHalfResTargets();
+                        this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+                        this.setSize(this.width, this.height);
+                    }
+                    this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+                }
                 if (propName === "halfRes" && oldProp !== value) {
                     this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                     this.configureHalfResTargets();
@@ -1543,14 +1952,50 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         const p = {
             ...(0, $e52378cd0f5a973d$export$57856b59f317262e)
         };
-        p.fragmentShader = p.fragmentShader.replace("16", this.configuration.denoiseSamples);
+        p.fragmentShader = p.fragmentShader.replace("__N8AO_DENOISE_SAMPLES__", this.configuration.denoiseSamples);
         if (depthBufferType === (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Log) p.fragmentShader = "#define LOGDEPTH\n" + p.fragmentShader;
         else if (depthBufferType === (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Reverse) p.fragmentShader = "#define REVERSEDEPTH\n" + p.fragmentShader;
         if (ortho) p.fragmentShader = "#define ORTHO\n" + p.fragmentShader;
-        if (this.poissonBlurQuad) {
-            this.poissonBlurQuad.material.dispose();
-            this.poissonBlurQuad.material = new $5Whe3$ShaderMaterial(p);
-        } else this.poissonBlurQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(p));
+        if (this.standardDenoiseMaterial) this.standardDenoiseMaterial.dispose();
+        if (this.neuralDenoiseMaterial) this.neuralDenoiseMaterial.dispose();
+        this.standardDenoiseMaterial = new $5Whe3$ShaderMaterial(p);
+        this.neuralDenoiseMaterial = this.configuration.neuralDenoise && [
+            4,
+            8,
+            16
+        ].includes(this.configuration.denoiseSamples) ? new $5Whe3$ShaderMaterial({
+            ...p,
+            glslVersion: $5Whe3$GLSL3,
+            fragmentShader: "#define NEURAL_DENOISE\nlayout(location = 0) out highp vec4 neuralFragColor;\n#define gl_FragColor neuralFragColor\n" + p.fragmentShader
+        }) : null;
+        if (this.poissonBlurQuad) this.poissonBlurQuad.material = this.standardDenoiseMaterial;
+        else this.poissonBlurQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(this.standardDenoiseMaterial);
+    }
+    shouldUseNeuralDenoise() {
+        if (!this.configuration.neuralDenoise) {
+            this._neuralDenoiseWarningKey = null;
+            return false;
+        }
+        const incompatibilities = [];
+        if (this.configuration.aoSamples !== 16) incompatibilities.push(`aoSamples is ${this.configuration.aoSamples} (expected 16)`);
+        if (![
+            4,
+            8,
+            16
+        ].includes(this.configuration.denoiseSamples)) incompatibilities.push(`denoiseSamples is ${this.configuration.denoiseSamples} (expected 4, 8, or 16)`);
+        if (this.configuration.denoiseRadius !== 12) incompatibilities.push(`denoiseRadius is ${this.configuration.denoiseRadius} (expected 12)`);
+        if (this.configuration.denoiseIterations !== 2) incompatibilities.push(`denoiseIterations is ${this.configuration.denoiseIterations} (expected 2)`);
+        if (this.configuration.halfRes) incompatibilities.push("halfRes is enabled (expected full resolution)");
+        if (incompatibilities.length > 0) {
+            const warningKey = incompatibilities.join("; ");
+            if (warningKey !== this._neuralDenoiseWarningKey) {
+                console.warn(`[N8AO] neuralDenoise is enabled but cannot run: ${warningKey}. ` + "Neural denoising has been disabled; standard denoising will be used.");
+                this._neuralDenoiseWarningKey = warningKey;
+            }
+            return false;
+        }
+        this._neuralDenoiseWarningKey = null;
+        return this.neuralDenoiseMaterial !== null;
     }
     configureEffectCompositer(depthBufferType = (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Default, ortho = false) {
         this.firstFrame();
@@ -1630,8 +2075,10 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         //renderer.setRenderTarget(outputBuffer);
         //  this.copyQuad.material.uniforms.tDiffuse.value = inputBuffer.texture;
         //   this.copyQuad.render(renderer);
-        if (renderer.capabilities.logarithmicDepthBuffer && this.configuration.depthBufferType !== (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Log || renderer.capabilities.reverseDepthBuffer && this.configuration.depthBufferType !== (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Reverse) {
-            this.configuration.depthBufferType = renderer.capabilities.logarithmicDepthBuffer ? (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Log : renderer.capabilities.reverseDepthBuffer ? (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Reverse : (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Default;
+        const rendererUsesReverseDepth = renderer.capabilities.reversedDepthBuffer === true || renderer.capabilities.reverseDepthBuffer === true;
+        const rendererDepthType = rendererUsesReverseDepth ? (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Reverse : renderer.capabilities.logarithmicDepthBuffer ? (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Log : (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Default;
+        if (this.configuration.depthBufferType !== rendererDepthType) {
+            this.configuration.depthBufferType = rendererDepthType;
             this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
             this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
             this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
@@ -1682,7 +2129,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
                 this.depthDownsampleQuad.material.uniforms["far"].value = this.camera.far;
                 this.depthDownsampleQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
                 this.depthDownsampleQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-                this.depthDownsampleQuad.material.uniforms["logDepth"].value = this.configuration.logarithmicDepthBuffer;
+                this.depthDownsampleQuad.material.uniforms["logDepth"].value = this.configuration.depthBufferType === (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Log;
                 this.depthDownsampleQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
                 this.depthDownsampleQuad.render(renderer);
             }
@@ -1712,11 +2159,13 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
             this.effectShaderQuad.render(renderer);
             // End the AO
             // Start the blur
+            const useNeuralDenoise = this.shouldUseNeuralDenoise();
             for(let i = 0; i < this.configuration.denoiseIterations; i++){
                 [this.writeTargetInternal, this.readTargetInternal] = [
                     this.readTargetInternal,
                     this.writeTargetInternal
                 ];
+                this.poissonBlurQuad.material = useNeuralDenoise && i === 1 ? this.neuralDenoiseMaterial : this.standardDenoiseMaterial;
                 this.poissonBlurQuad.material.uniforms["tDiffuse"].value = this.readTargetInternal.texture;
                 this.poissonBlurQuad.material.uniforms["sceneDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.textures[0] : this.depthTexture;
                 this.poissonBlurQuad.material.uniforms["projMat"].value = this.camera.projectionMatrix;
@@ -1823,28 +2272,48 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
     }
     /**
          * 
-         * @param {"Performance" | "Low" | "Medium" | "High" | "Ultra"} mode 
+         * @param {"Performance" | "Low" | "Medium" | "High" | "Ultra" | "Neural-Low" | "Neural-Medium" | "Neural-High"} mode
          */ setQualityMode(mode) {
         if (mode === "Performance") {
+            this.configuration.neuralDenoise = false;
             this.configuration.aoSamples = 8;
             this.configuration.denoiseSamples = 4;
             this.configuration.denoiseRadius = 12;
         } else if (mode === "Low") {
+            this.configuration.neuralDenoise = false;
             this.configuration.aoSamples = 16;
             this.configuration.denoiseSamples = 4;
             this.configuration.denoiseRadius = 12;
         } else if (mode === "Medium") {
+            this.configuration.neuralDenoise = false;
             this.configuration.aoSamples = 16;
             this.configuration.denoiseSamples = 8;
             this.configuration.denoiseRadius = 12;
         } else if (mode === "High") {
+            this.configuration.neuralDenoise = false;
             this.configuration.aoSamples = 64;
             this.configuration.denoiseSamples = 8;
             this.configuration.denoiseRadius = 6;
         } else if (mode === "Ultra") {
+            this.configuration.neuralDenoise = false;
             this.configuration.aoSamples = 64;
             this.configuration.denoiseSamples = 16;
             this.configuration.denoiseRadius = 6;
+        } else if ([
+            "Neural-Low",
+            "Neural-Medium",
+            "Neural-High"
+        ].includes(mode)) {
+            this.configuration.aoSamples = 16;
+            this.configuration.denoiseSamples = ({
+                "Neural-Low": 4,
+                "Neural-Medium": 8,
+                "Neural-High": 16
+            })[mode];
+            this.configuration.denoiseRadius = 12;
+            this.configuration.denoiseIterations = 2;
+            this.configuration.halfRes = false;
+            this.configuration.neuralDenoise = true;
         }
     }
 }
@@ -1890,6 +2359,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         this.width = width;
         this.height = height;
         this.clear = true;
+        this._neuralDenoiseWarningKey = null;
         this.camera = camera;
         this.scene = scene;
         /**
@@ -1909,7 +2379,8 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
          * halfRes: boolean,
          * depthAwareUpsampling: boolean,
          * autoRenderBeauty: boolean
-         * colorMultiply: boolean
+         * colorMultiply: boolean,
+         * neuralDenoise: boolean
          * }
          */ this.configuration = new Proxy({
             aoSamples: 16,
@@ -1933,7 +2404,8 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             colorMultiply: true,
             transparencyAware: false,
             stencil: false,
-            accumulate: false
+            accumulate: false,
+            neuralDenoise: false
         }, {
             set: (target, propName, value)=>{
                 const oldProp = target[propName];
@@ -1943,6 +2415,28 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
                 } else if (oldProp !== value) this.firstFrame();
                 if (propName === "aoSamples" && oldProp !== value) this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 if (propName === "denoiseSamples" && oldProp !== value) this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+                if (propName === "neuralDenoise" && oldProp !== value) {
+                    const reconfigureAO = value && (target.aoSamples !== 16 || target.halfRes);
+                    const disableHalfRes = value && target.halfRes;
+                    if (value) {
+                        target.aoSamples = 16;
+                        if (![
+                            4,
+                            8,
+                            16
+                        ].includes(target.denoiseSamples)) target.denoiseSamples = 8;
+                        target.denoiseRadius = 12;
+                        target.denoiseIterations = 2;
+                        target.halfRes = false;
+                    }
+                    if (reconfigureAO) this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+                    if (disableHalfRes) {
+                        this.configureHalfResTargets();
+                        this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+                        this.setSize(this.width, this.height);
+                    }
+                    this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+                }
                 if (propName === "halfRes" && oldProp !== value) {
                     this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                     this.configureHalfResTargets();
@@ -2224,14 +2718,50 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         const p = {
             ...(0, $e52378cd0f5a973d$export$57856b59f317262e)
         };
-        p.fragmentShader = p.fragmentShader.replace("16", this.configuration.denoiseSamples);
+        p.fragmentShader = p.fragmentShader.replace("__N8AO_DENOISE_SAMPLES__", this.configuration.denoiseSamples);
         if (depthBufferType === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Log) p.fragmentShader = "#define LOGDEPTH\n" + p.fragmentShader;
         else if (depthBufferType === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse) p.fragmentShader = "#define REVERSEDEPTH\n" + p.fragmentShader;
         if (ortho) p.fragmentShader = "#define ORTHO\n" + p.fragmentShader;
-        if (this.poissonBlurQuad) {
-            this.poissonBlurQuad.material.dispose();
-            this.poissonBlurQuad.material = new $5Whe3$ShaderMaterial(p);
-        } else this.poissonBlurQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(p));
+        if (this.standardDenoiseMaterial) this.standardDenoiseMaterial.dispose();
+        if (this.neuralDenoiseMaterial) this.neuralDenoiseMaterial.dispose();
+        this.standardDenoiseMaterial = new $5Whe3$ShaderMaterial(p);
+        this.neuralDenoiseMaterial = this.configuration.neuralDenoise && [
+            4,
+            8,
+            16
+        ].includes(this.configuration.denoiseSamples) ? new $5Whe3$ShaderMaterial({
+            ...p,
+            glslVersion: $5Whe3$GLSL3,
+            fragmentShader: "#define NEURAL_DENOISE\nlayout(location = 0) out highp vec4 neuralFragColor;\n#define gl_FragColor neuralFragColor\n" + p.fragmentShader
+        }) : null;
+        if (this.poissonBlurQuad) this.poissonBlurQuad.material = this.standardDenoiseMaterial;
+        else this.poissonBlurQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(this.standardDenoiseMaterial);
+    }
+    shouldUseNeuralDenoise() {
+        if (!this.configuration.neuralDenoise) {
+            this._neuralDenoiseWarningKey = null;
+            return false;
+        }
+        const incompatibilities = [];
+        if (this.configuration.aoSamples !== 16) incompatibilities.push(`aoSamples is ${this.configuration.aoSamples} (expected 16)`);
+        if (![
+            4,
+            8,
+            16
+        ].includes(this.configuration.denoiseSamples)) incompatibilities.push(`denoiseSamples is ${this.configuration.denoiseSamples} (expected 4, 8, or 16)`);
+        if (this.configuration.denoiseRadius !== 12) incompatibilities.push(`denoiseRadius is ${this.configuration.denoiseRadius} (expected 12)`);
+        if (this.configuration.denoiseIterations !== 2) incompatibilities.push(`denoiseIterations is ${this.configuration.denoiseIterations} (expected 2)`);
+        if (this.configuration.halfRes) incompatibilities.push("halfRes is enabled (expected full resolution)");
+        if (incompatibilities.length > 0) {
+            const warningKey = incompatibilities.join("; ");
+            if (warningKey !== this._neuralDenoiseWarningKey) {
+                console.warn(`[N8AO] neuralDenoise is enabled but cannot run: ${warningKey}. ` + "Neural denoising has been disabled; standard denoising will be used.");
+                this._neuralDenoiseWarningKey = warningKey;
+            }
+            return false;
+        }
+        this._neuralDenoiseWarningKey = null;
+        return this.neuralDenoiseMaterial !== null;
     }
     configureEffectCompositer(depthBufferType = $05f6997e4b65da14$export$ed4ee5d1e55474a5.Default, ortho = false) {
         this.firstFrame();
@@ -2302,8 +2832,10 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         this.needsFrame = true;
     }
     render(renderer, writeBuffer, readBuffer, deltaTime, maskActive) {
-        if (renderer.capabilities.logarithmicDepthBuffer && this.configuration.depthBufferType !== $05f6997e4b65da14$export$ed4ee5d1e55474a5.Log || renderer.capabilities.reverseDepthBuffer && this.configuration.depthBufferType !== $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse) {
-            this.configuration.depthBufferType = renderer.capabilities.logarithmicDepthBuffer ? $05f6997e4b65da14$export$ed4ee5d1e55474a5.Log : renderer.capabilities.reverseDepthBuffer ? $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse : $05f6997e4b65da14$export$ed4ee5d1e55474a5.Default;
+        const rendererUsesReverseDepth = renderer.capabilities.reversedDepthBuffer === true || renderer.capabilities.reverseDepthBuffer === true;
+        const rendererDepthType = rendererUsesReverseDepth ? $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse : renderer.capabilities.logarithmicDepthBuffer ? $05f6997e4b65da14$export$ed4ee5d1e55474a5.Log : $05f6997e4b65da14$export$ed4ee5d1e55474a5.Default;
+        if (this.configuration.depthBufferType !== rendererDepthType) {
+            this.configuration.depthBufferType = rendererDepthType;
             this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
             this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
             this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
@@ -2385,11 +2917,13 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             this.effectShaderQuad.render(renderer);
             // End the AO
             // Start the blur
+            const useNeuralDenoise = this.shouldUseNeuralDenoise();
             for(let i = 0; i < this.configuration.denoiseIterations; i++){
                 [this.writeTargetInternal, this.readTargetInternal] = [
                     this.readTargetInternal,
                     this.writeTargetInternal
                 ];
+                this.poissonBlurQuad.material = useNeuralDenoise && i === 1 ? this.neuralDenoiseMaterial : this.standardDenoiseMaterial;
                 this.poissonBlurQuad.material.uniforms["tDiffuse"].value = this.readTargetInternal.texture;
                 this.poissonBlurQuad.material.uniforms["sceneDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.textures[0] : this.beautyRenderTarget.depthTexture;
                 this.poissonBlurQuad.material.uniforms["projMat"].value = this.camera.projectionMatrix;
@@ -2492,28 +3026,48 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
     }
     /**
          * 
-         * @param {"Performance" | "Low" | "Medium" | "High" | "Ultra"} mode 
+         * @param {"Performance" | "Low" | "Medium" | "High" | "Ultra" | "Neural-Low" | "Neural-Medium" | "Neural-High"} mode
          */ setQualityMode(mode) {
         if (mode === "Performance") {
+            this.configuration.neuralDenoise = false;
             this.configuration.aoSamples = 8;
             this.configuration.denoiseSamples = 4;
             this.configuration.denoiseRadius = 12;
         } else if (mode === "Low") {
+            this.configuration.neuralDenoise = false;
             this.configuration.aoSamples = 16;
             this.configuration.denoiseSamples = 4;
             this.configuration.denoiseRadius = 12;
         } else if (mode === "Medium") {
+            this.configuration.neuralDenoise = false;
             this.configuration.aoSamples = 16;
             this.configuration.denoiseSamples = 8;
             this.configuration.denoiseRadius = 12;
         } else if (mode === "High") {
+            this.configuration.neuralDenoise = false;
             this.configuration.aoSamples = 64;
             this.configuration.denoiseSamples = 8;
             this.configuration.denoiseRadius = 6;
         } else if (mode === "Ultra") {
+            this.configuration.neuralDenoise = false;
             this.configuration.aoSamples = 64;
             this.configuration.denoiseSamples = 16;
             this.configuration.denoiseRadius = 6;
+        } else if ([
+            "Neural-Low",
+            "Neural-Medium",
+            "Neural-High"
+        ].includes(mode)) {
+            this.configuration.aoSamples = 16;
+            this.configuration.denoiseSamples = ({
+                "Neural-Low": 4,
+                "Neural-Medium": 8,
+                "Neural-High": 16
+            })[mode];
+            this.configuration.denoiseRadius = 12;
+            this.configuration.denoiseIterations = 2;
+            this.configuration.halfRes = false;
+            this.configuration.neuralDenoise = true;
         }
     }
 }

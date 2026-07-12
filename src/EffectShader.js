@@ -98,6 +98,20 @@ uniform sampler2D bluenoise;
       vec4 wpos = projectionMatrixInv * clipVec;
       return wpos.xyz / wpos.w;
     }
+    float depthToClipZ(float depth) {
+      #ifdef REVERSEDEPTH
+        return depth;
+      #else
+        return depth * 2.0 - 1.0;
+      #endif
+    }
+    bool isBackgroundDepth(float depth) {
+      #ifdef REVERSEDEPTH
+        return depth == 0.0;
+      #else
+        return depth == 1.0;
+      #endif
+    }
     vec3 getWorldPos(float depth, vec2 coord) {
       #ifdef LOGDEPTH
         #ifndef ORTHO
@@ -105,14 +119,14 @@ uniform sampler2D bluenoise;
         #endif
       #endif
       #ifdef ORTHO
-        float z = depth * 2. - 1.;
+        float z = depthToClipZ(depth);
         vec4 clipSpacePosition = vec4(coord * 2. - 1., z, 1.);
         vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
         viewSpacePosition.xyz /= viewSpacePosition.w;
         return viewSpacePosition.xyz;
       #else
         vec2 ndc = coord * 2. - 1.;
-        float ndcZ = depth * 2. - 1.;
+        float ndcZ = depthToClipZ(depth);
         mat4 Q = projectionMatrixInv;
         vec3 view = vec3(Q[0][0] * ndc.x + Q[3][0], Q[1][1] * ndc.y + Q[3][1], Q[3][2]);
         float invW = 1. / (Q[2][3] * ndcZ + Q[3][3]);
@@ -122,17 +136,6 @@ uniform sampler2D bluenoise;
 
   vec3 computeNormal(vec3 worldPos, vec2 vUv) {
     ivec2 p = ivec2(vUv * resolution);
-    #ifdef REVERSEDEPTH
-    float c0 = 1.0 - texelFetch(sceneDepth, p, 0).x;
-    float l2 = 1.0 - texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
-    float l1 = 1.0 - texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
-    float r1 = 1.0 - texelFetch(sceneDepth, p + ivec2(1, 0), 0).x;
-    float r2 = 1.0 - texelFetch(sceneDepth, p + ivec2(2, 0), 0).x;
-    float b2 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 2), 0).x;
-    float b1 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
-    float t1 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
-    float t2 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
-    #else
     float c0 = texelFetch(sceneDepth, p, 0).x;
     float l2 = texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
     float l1 = texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
@@ -142,7 +145,6 @@ uniform sampler2D bluenoise;
     float b1 = texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
     float t1 = texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
     float t2 = texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
-    #endif
 
     float dl = abs((2.0 * l1 - l2) - c0);
     float dr = abs((2.0 * r1 - r2) - c0);
@@ -169,12 +171,8 @@ mat3 makeRotationZ(float theta) {
 
 void main() {
       vec4 diffuse = texture2D(sceneDiffuse, vUv);
-      #ifdef REVERSEDEPTH
-      float depth = 1.0 - texture2D(sceneDepth, vUv).x;
-      #else
       float depth = texture2D(sceneDepth, vUv).x;
-      #endif
-      if (depth == 1.0) {
+      if (isBackgroundDepth(depth)) {
         gl_FragColor = vec4(vec3(1.0), 1.0);
         return;
       }
@@ -227,14 +225,13 @@ void main() {
         vec3 samplePos = worldPos + radiusToUse * moveAmt * sampleDirection;
         vec4 offset = projMat * vec4(samplePos, 1.0);
         offset.xyz /= offset.w;
-        offset.xyz = offset.xyz * 0.5 + 0.5;
+        offset.xy = offset.xy * 0.5 + 0.5;
+        #ifndef REVERSEDEPTH
+        offset.z = offset.z * 0.5 + 0.5;
+        #endif
         
         if (all(greaterThan(offset.xyz * (1.0 - offset.xyz), vec3(0.0)))) {
-          #ifdef REVERSEDEPTH
-          float sampleDepth = 1.0 - textureLod(sceneDepth, offset.xy, 0.0).x;
-          #else
           float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;
-          #endif
 
           /*#ifdef LOGDEPTH
           float distSample = linearize_depth_log(sampleDepth, near, far);
@@ -245,20 +242,28 @@ void main() {
               float distSample = (farTimesNear) / (far - sampleDepth * farMinusNear);
           #endif
       #endif*/
-      #ifdef ORTHO
-          float distSample = near + sampleDepth * farMinusNear;
+      #ifdef REVERSEDEPTH
+          float distSample = -getWorldPos(sampleDepth, offset.xy).z;
       #else
+        #ifdef ORTHO
+          float distSample = near + sampleDepth * farMinusNear;
+        #else
           #ifdef LOGDEPTH
               float distSample = linearize_depth_log(sampleDepth, near, far);
           #else
               float distSample = (farTimesNear) / (far - sampleDepth * farMinusNear);
           #endif
+        #endif
       #endif
       
-      #ifdef ORTHO
-          float distWorld = near + offset.z * farMinusNear;
+      #ifdef REVERSEDEPTH
+          float distWorld = -samplePos.z;
       #else
+        #ifdef ORTHO
+          float distWorld = near + offset.z * farMinusNear;
+        #else
           float distWorld = (farTimesNear) / (far - offset.z * farMinusNear);
+        #endif
       #endif
           
           mediump float rangeCheck = smoothstep(0.0, 1.0, distanceFalloffToUse / (abs(distSample - distWorld)));

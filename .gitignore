@@ -4,3 +4,9 @@ example_webgpu
 .vscode
 .idea
 *.DS_Store
+metal/
+metal-output/
+evaluation-output/
+training-output/
+__pycache__/
+*.pyc

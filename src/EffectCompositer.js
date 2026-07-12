@@ -109,6 +109,20 @@ const EffectCompositer = {
         vec4 wpos = projectionMatrixInv * clipVec;
         return wpos.xyz / wpos.w;
       }
+      float depthToClipZ(float depth) {
+        #ifdef REVERSEDEPTH
+          return depth;
+        #else
+          return depth * 2.0 - 1.0;
+        #endif
+      }
+      bool isBackgroundDepth(float depth) {
+        #ifdef REVERSEDEPTH
+          return depth == 0.0;
+        #else
+          return depth == 1.0;
+        #endif
+      }
       vec3 getWorldPos(float depth, vec2 coord) {
         #ifdef LOGDEPTH
           #ifndef ORTHO
@@ -117,14 +131,14 @@ const EffectCompositer = {
         #endif
       //  }
         #ifdef ORTHO
-          float z = depth * 2. - 1.;
+          float z = depthToClipZ(depth);
           vec4 clipSpacePosition = vec4(coord * 2. - 1., z, 1.);
           vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
           viewSpacePosition.xyz /= viewSpacePosition.w;
           return viewSpacePosition.xyz;
         #else
           vec2 ndc = coord * 2. - 1.;
-          float ndcZ = depth * 2. - 1.;
+          float ndcZ = depthToClipZ(depth);
           mat4 Q = projectionMatrixInv;
           vec3 view = vec3(Q[0][0] * ndc.x + Q[3][0], Q[1][1] * ndc.y + Q[3][1], Q[3][2]);
           float invW = 1. / (Q[2][3] * ndcZ + Q[3][3]);
@@ -134,17 +148,6 @@ const EffectCompositer = {
   
     vec3 computeNormal(vec3 worldPos, vec2 vUv) {
       ivec2 p = ivec2(vUv * resolution);
-      #ifdef REVERSEDEPTH
-      float c0 = 1.0 - texelFetch(sceneDepth, p, 0).x;
-      float l2 = 1.0 - texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
-      float l1 = 1.0 - texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
-      float r1 = 1.0 - texelFetch(sceneDepth, p + ivec2(1, 0), 0).x;
-      float r2 = 1.0 - texelFetch(sceneDepth, p + ivec2(2, 0), 0).x;
-      float b2 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 2), 0).x;
-      float b1 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
-      float t1 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
-      float t2 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
-      #else
       float c0 = texelFetch(sceneDepth, p, 0).x;
       float l2 = texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
       float l1 = texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
@@ -154,7 +157,6 @@ const EffectCompositer = {
       float b1 = texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
       float t1 = texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
       float t2 = texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
-      #endif
   
       float dl = abs((2.0 * l1 - l2) - c0);
       float dr = abs((2.0 * r1 - r2) - c0);
@@ -176,14 +178,10 @@ const EffectCompositer = {
     void main() {
         //vec4 texel = texture2D(tDiffuse, vUv);//vec3(0.0);
         vec4 sceneTexel = texture2D(sceneDiffuse, vUv);
-        #ifdef REVERSEDEPTH
-        float depth = 1.0 - texture2D(sceneDepth, vUv).x;
-        #else
         float depth = texture2D(sceneDepth, vUv).x;
-        #endif
         #ifdef HALFRES 
         vec4 texel = vec4(0.0);
-        if (depth == 1.0) {
+        if (isBackgroundDepth(depth)) {
             texel = vec4(1.0, 0.0, 0.0, 1.0);
         } else {
         vec3 worldPos = getWorldPos(depth, vUv);
@@ -254,13 +252,8 @@ const EffectCompositer = {
             float transparencyDWOff = texture2D(transparencyDWFalse, vUv).a;
             float transparencyDWOn = texture2D(transparencyDWTrue, vUv).a;
             float adjustmentFactorOff = transparencyDWOff;
-            #ifdef REVERSEDEPTH
-            float depthSample = 1.0 - texture2D(sceneDepth, vUv).r;
-            float trueDepthSample = 1.0 - texture2D(transparencyDWTrueDepth, vUv).r;
-            #else
             float depthSample = texture2D(sceneDepth, vUv).r;
             float trueDepthSample = texture2D(transparencyDWTrueDepth, vUv).r;
-            #endif
             float adjustmentFactorOn = (1.0 - transparencyDWOn) * (
                 trueDepthSample == depthSample ? 1.0 : 0.0
             );

@@ -118,6 +118,22 @@ They are covered below:
 ### Migration Notice
 The API changed slightly with N8AO 1.7 - the only change you should have to make is adjusting your `distanceFalloff` parameter - choosing 1.0 is a safe value. For the exact same results you had before, you can do `distanceFalloff = 5.0 * oldDistanceFalloff / radius`.
 
+`neuralDenoise: boolean` - Enables an optional learned denoising step that removes the large, slow-moving splotches which can remain after standard denoising. It is especially useful with lower denoise sample counts, allowing 4 or 8 samples to produce much cleaner and more stable AO while retaining small geometric details. Neural denoising is disabled by default because it adds some GPU cost.
+
+The easiest way to enable it is with one of the neural quality modes:
+
+```js
+n8aopass.setQualityMode("Neural-Medium"); // "Neural-Low", "Neural-Medium", or "Neural-High"
+```
+
+These modes use 4, 8, and 16 denoise samples respectively. All three automatically enable neural denoising and use its required configuration: 16 AO samples, a denoise radius of 12, two denoise passes, and full resolution. `aoRadius` and `distanceFalloff` continue to work normally.
+
+You can also configure neural denoising manually with `configuration.neuralDenoise`, but the neural quality modes are recommended. If a required parameter is changed while neural denoising is enabled, N8AO falls back to standard denoising rather than throwing an error and prints a warning to the console.
+
+| <img src="example/tutorial/neuraldenoiseoff.jpeg" alt="Neural denoising disabled"/> | <img src="example/tutorial/neuraldenoise4.jpeg" alt="Neural denoising with 4 samples"/> | <img src="example/tutorial/neuraldenoise8.jpeg" alt="Neural denoising with 8 samples"/> | <img src="example/tutorial/neuraldenoise16.jpeg" alt="Neural denoising with 16 samples"/> |
+|:---:|:---:|:---:|:---:|
+| Neural Denoise Off (16 samples) | Neural Denoise On (4 samples) | Neural Denoise On (8 samples) | Neural Denoise On (16 samples) |
+
 `intensity: number` - A purely artistic control for the intensity of the AO - runs the ao through the function `pow(ao, intensity)`, which has the effect of darkening areas with more ambient occlusion. Useful to make the effect more pronounced. An intensity of 2 generally produces soft ambient occlusion that isn't too noticeable, whereas one of 5 produces heavily prominent ambient occlusion. 
 
 `color: THREE.Color` - The color of the ambient occlusion. By default, it is black, but it can be changed to any color to offer a crude approximation of global illumination. Recommended in scenes where bounced light has a uniform "color", for instance a scene that is predominantly lit by a blue sky. The color is expected to be in the sRGB color space, and is automatically converted to linear space for you. Keep the color pretty dark for sensible results.
@@ -164,22 +180,25 @@ This will cause the AO to be calculated at half the resolution of the screen, an
 
 The half-resolution mode uses depth-aware upscaling by default, and this generally incurs a fixed cost of around 1ms. The AO effect looks horrible without depth-aware upscaling, so it is not recommended to disable it. However, if performance is truly that critical, you can do so by setting `configuration.depthAwareUpsampling` to `false`.
 
-On top of half-resolution mode,`N8AOPass` comes with a wide variety of quality presets (which can be used with or without half-resolution mode), and you can even manually edit the settings to your liking. You can switch between quality modes (the default is `Medium`) by doing:
+On top of half-resolution mode, `N8AOPass` comes with a wide variety of quality presets, and you can even manually edit the settings to your liking. The standard modes can be used with or without half-resolution mode; the neural modes automatically use full resolution. You can switch between quality modes (the default is `Medium`) by doing:
 
 ```js
-n8ao.setQualityMode("Low"); // Or any other quality mode
+n8aopass.setQualityMode("Low"); // Or any other quality mode
 ```
 
 The quality modes are as follows:
 
 *Temporal stability refers to how consistent the AO is from frame to frame - it's important for a smooth experience.*
-| Quality Mode | AO Samples | Denoise Samples | Denoise Radius | Best For
-|:---:|:---:|:---:|:---:|:---:|
-| Performance (Less temporal stability, a bit noisy) | 8 | 4 | 12 | Mobile, Low-end iGPUs and laptops |
-| Low (Temporally stable, but low-frequency noise) | 16 | 4 | 12 | High-End Mobile, iGPUs, laptops |
-| Medium (Temporally stable and barely any noise) | 16 | 8 | 12 | High-End Mobile, laptops, desktops |
-| High (Significantly sharper AO, barely any noise) | 64 | 8 | 6 | Desktops, dedicated GPUs  |
-| Ultra (Sharp AO, No visible noise whatsoever) | 64 | 16 | 6 | Desktops, dedicated GPUs|
+| Quality Mode | AO Samples | Denoise Samples | Denoise Radius | Neural Denoise | Best For
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| Performance (Less temporal stability, a bit noisy) | 8 | 4 | 12 | No | Mobile, Low-end iGPUs and laptops |
+| Low (Temporally stable, but low-frequency noise) | 16 | 4 | 12 | No | High-End Mobile, iGPUs, laptops |
+| Medium (Temporally stable and barely any noise) | 16 | 8 | 12 | No | High-End Mobile, laptops, desktops |
+| High (Significantly sharper AO, barely any noise) | 64 | 8 | 6 | No | Desktops, dedicated GPUs  |
+| Ultra (Sharp AO, No visible noise whatsoever) | 64 | 16 | 6 | No | Desktops, dedicated GPUs|
+| Neural-Low (Clean, stable AO at the lowest neural cost) | 16 | 4 | 12 | Yes | Laptops and desktops |
+| Neural-Medium (Clean, stable AO with additional smoothing) | 16 | 8 | 12 | Yes | Laptops and desktops |
+| Neural-High (Cleanest neural output) | 16 | 16 | 12 | Yes | Desktops and dedicated GPUs |
 
 Generally, half-res mode at "Ultra" quality is slightly slower than full-res mode at "Performance" quality, but produces significantly better results.
 
@@ -347,14 +366,3 @@ https://github.com/mrdoob/three.js/blob/dev/examples/jsm/postprocessing/SSAOPass
 https://pmndrs.github.io/postprocessing/public/docs/class/src/effects/SSAOEffect.js~SSAOEffect.html
 https://github.com/Calinou/free-blue-noise-textures
 https://iquilezles.org/articles/multiresaocc/
-
-
-
-
-
-
-
-
-
-
-

@@ -3,4 +3,10 @@ node_modules
 .vscode
 example
 example_postprocessing
+metal
+metal-output
+evaluation-output
+training-output
+__pycache__
+*.pyc
 *.DS_Store

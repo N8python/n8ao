@@ -67,11 +67,13 @@ async function main() {
     torusKnotShadow2.material.color = new THREE.Color(1.0, 0.4, 0.4);
     torusKnotShadow2.material.opacity = 1.0;
     torusKnotShadow2.material.blending = THREE.MultiplyBlending;
+    torusKnotShadow2.material.premultipliedAlpha = true;
     scene.add(torusKnotShadow2);
     const torusKnotShadow3 = new ShadowMesh(torusKnot3);
     torusKnotShadow3.material.color = new THREE.Color(0.4, 0.4, 1.0);
     torusKnotShadow3.material.opacity = 1.0;
     torusKnotShadow3.material.blending = THREE.MultiplyBlending;
+    torusKnotShadow3.material.premultipliedAlpha = true;
     scene.add(torusKnotShadow3);
     torusKnotShadow.userData.treatAsOpaque = true;
     torusKnotShadow2.userData.treatAsOpaque = false;
@@ -113,6 +115,7 @@ async function main() {
         colorMultiply: true,
         stencil: true,
         accumulate: false,
+        neuralDenoise: false,
     };
     const gui = new GUI();
     gui.add(effectController, "aoSamples", 1.0, 64.0, 1.0);
@@ -121,6 +124,15 @@ async function main() {
     gui.add(effectController, "denoiseSamples", 1.0, 64.0, 1.0);
     gui.add(effectController, "denoiseRadius", 0.0, 24.0, 0.01);
     gui.add(effectController, "denoiseIterations", 1.0, 10.0, 1.0);
+    gui.add(effectController, "neuralDenoise").onChange((enabled) => {
+        if (enabled) {
+            effectController.aoSamples = 16;
+            effectController.denoiseRadius = 12;
+            effectController.denoiseIterations = 2;
+            effectController.halfRes = false;
+            gui.controllersRecursive().forEach((controller) => controller.updateDisplay());
+        }
+    });
     const df = gui.add(effectController, "distanceFalloff", 0.0, 10.0, 0.01);
     gui.add(effectController, "screenSpaceRadius").onChange((value) => {
         if (value) {
@@ -172,12 +184,14 @@ async function main() {
     const timerDOM = document.getElementById("aoTime");
     const aoMeta = document.getElementById("aoMetadata");
     n8aopass.enableDebugMode();
-    const clock = new THREE.Clock();
+    const timer = new THREE.Timer();
+    timer.connect(document);
 
     function animate() {
         renderer.clearDepth();
         aoMeta.innerHTML = `${clientWidth}x${clientHeight}`
-        const spin = 2 * clock.getDelta();
+        timer.update();
+        const spin = 2 * timer.getDelta();
         if (!effectController.accumulate) {
             torusKnot.rotation.x += spin;
             torusKnot.rotation.y += spin;
@@ -213,6 +227,7 @@ async function main() {
         n8aopass.configuration.denoiseRadius = effectController.denoiseRadius;
         n8aopass.configuration.denoiseSamples = effectController.denoiseSamples;
         n8aopass.configuration.denoiseIterations = effectController.denoiseIterations;
+        n8aopass.configuration.neuralDenoise = effectController.neuralDenoise;
         n8aopass.configuration.stencil = effectController.stencil;
         n8aopass.configuration.renderMode = ["Combined", "AO", "No AO", "Split", "Split AO"].indexOf(effectController.renderMode);
         n8aopass.configuration.color = new THREE.Color(effectController.color[0], effectController.color[1], effectController.color[2]);

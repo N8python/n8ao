@@ -49,14 +49,22 @@ const DepthDownSample = {
           return getWorldPosLog(vec3(coord, depth));
         }
         if (ortho) {
+          #ifdef REVERSEDEPTH
+          float z = depth;
+          #else
           float z = depth * 2. - 1.;
+          #endif
           vec4 clipSpacePosition = vec4(coord * 2. - 1., z, 1.);
           vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
           viewSpacePosition.xyz /= viewSpacePosition.w;
           return viewSpacePosition.xyz;
         }
         vec2 ndc = coord * 2. - 1.;
+        #ifdef REVERSEDEPTH
+        float ndcZ = depth;
+        #else
         float ndcZ = depth * 2. - 1.;
+        #endif
         mat4 Q = projectionMatrixInv;
         vec3 view = vec3(Q[0][0] * ndc.x + Q[3][0], Q[1][1] * ndc.y + Q[3][1], Q[3][2]);
         float invW = 1. / (Q[2][3] * ndcZ + Q[3][3]);
@@ -65,17 +73,6 @@ const DepthDownSample = {
   
     vec3 computeNormal(vec3 worldPos, vec2 vUv) {
       ivec2 p = ivec2(vUv * resolution);
-      #ifdef REVERSEDEPTH
-      float c0 = 1.0 - texelFetch(sceneDepth, p, 0).x;
-      float l2 = 1.0 - texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
-      float l1 = 1.0 - texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
-      float r1 = 1.0 - texelFetch(sceneDepth, p + ivec2(1, 0), 0).x;
-      float r2 = 1.0 - texelFetch(sceneDepth, p + ivec2(2, 0), 0).x;
-      float b2 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 2), 0).x;
-      float b1 = 1.0 - texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
-      float t1 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
-      float t2 = 1.0 - texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
-      #else
       float c0 = texelFetch(sceneDepth, p, 0).x;
       float l2 = texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
       float l1 = texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
@@ -85,7 +82,6 @@ const DepthDownSample = {
       float b1 = texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
       float t1 = texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
       float t2 = texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
-      #endif
   
       float dl = abs((2.0 * l1 - l2) - c0);
       float dr = abs((2.0 * r1 - r2) - c0);
@@ -109,17 +105,10 @@ const DepthDownSample = {
         uvSamples[1] = uv + vec2(pixelSize.x, 0.0);
         uvSamples[2] = uv + vec2(0.0, pixelSize.y);
         uvSamples[3] = uv + pixelSize;
-        #ifdef REVERSEDEPTH
-        float depth00 = 1.0 - texture2D(sceneDepth, uvSamples[0]).r;
-        float depth10 = 1.0 - texture2D(sceneDepth, uvSamples[1]).r;
-        float depth01 = 1.0 - texture2D(sceneDepth, uvSamples[2]).r;
-        float depth11 = 1.0 - texture2D(sceneDepth, uvSamples[3]).r;
-        #else
         float depth00 = texture2D(sceneDepth, uvSamples[0]).r;
         float depth10 = texture2D(sceneDepth, uvSamples[1]).r;
         float depth01 = texture2D(sceneDepth, uvSamples[2]).r;
         float depth11 = texture2D(sceneDepth, uvSamples[3]).r;
-        #endif
         float minDepth = min(min(depth00, depth10), min(depth01, depth11));
         float maxDepth = max(max(depth00, depth10), max(depth01, depth11));
         float targetDepth = minDepth;

@@ -118,7 +118,7 @@ They are covered below:
 ### Migration Notice
 The API changed slightly with N8AO 1.7 - the only change you should have to make is adjusting your `distanceFalloff` parameter - choosing 1.0 is a safe value. For the exact same results you had before, you can do `distanceFalloff = 5.0 * oldDistanceFalloff / radius`.
 
-`neuralDenoise: boolean` - Enables an optional learned denoising step that removes the large, slow-moving splotches which can remain after standard denoising. It is especially useful with lower denoise sample counts, allowing 4 or 8 samples to produce much cleaner and more stable AO while retaining small geometric details. Neural denoising is disabled by default because it adds some GPU cost.
+`neuralDenoise: boolean` - Enables an optional learned denoising step that enhances temporal stability, sharpens contact shadows, and simulates the precision of vastly more AO samples. It is especially useful with lower denoise sample counts, allowing 4 or 8 samples to produce much cleaner and more stable AO while retaining small geometric details. Neural denoising is disabled by default because it adds some GPU cost.
 
 The easiest way to enable it is with one of the neural quality modes:
 

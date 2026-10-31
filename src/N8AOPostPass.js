@@ -879,7 +879,7 @@ class N8AOPostPass extends Pass {
         }
         /**
          * 
-         * @param {"Performance" | "Low" | "Medium" | "High" | "Ultra" | "Neural-Low" | "Neural-Medium" | "Neural-High"} mode
+         * @param {"Performance" | "Low" | "Medium" | "High" | "Ultra" | "Neural-Performance" | "Neural-Low" | "Neural-Medium" | "Neural-High"} mode
          */
     setQualityMode(mode) {
         if (mode === "Performance") {
@@ -907,12 +907,13 @@ class N8AOPostPass extends Pass {
             this.configuration.aoSamples = 64;
             this.configuration.denoiseSamples = 16;
             this.configuration.denoiseRadius = 6;
-        } else if (["Neural-Low", "Neural-Medium", "Neural-High"].includes(mode)) {
-            this.configuration.aoSamples = 16;
-            this.configuration.denoiseSamples = {
-                "Neural-Low": 4,
-                "Neural-Medium": 8,
-                "Neural-High": 16
+        } else if (["Neural-Performance", "Neural-Low", "Neural-Medium", "Neural-High"].includes(mode)) {
+            // [aoSamples, denoiseSamples]; Neural-Performance runs the low-end specialist model.
+            [this.configuration.aoSamples, this.configuration.denoiseSamples] = {
+                "Neural-Performance": [8, 4],
+                "Neural-Low": [16, 4],
+                "Neural-Medium": [16, 8],
+                "Neural-High": [16, 16]
             }[mode];
             this.configuration.denoiseRadius = 12;
             this.configuration.denoiseIterations = 2;

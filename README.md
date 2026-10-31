@@ -123,10 +123,10 @@ The API changed slightly with N8AO 1.7 - the only change you should have to make
 The easiest way to enable it is with one of the neural quality modes:
 
 ```js
-n8aopass.setQualityMode("Neural-Medium"); // "Neural-Low", "Neural-Medium", or "Neural-High"
+n8aopass.setQualityMode("Neural-Medium"); // "Neural-Performance", "Neural-Low", "Neural-Medium", or "Neural-High"
 ```
 
-These modes use 16 AO samples with 4, 8, and 16 denoise samples respectively. All three automatically enable neural denoising and use its required configuration: a denoise radius of 12, two denoise passes, and full resolution. `aoRadius` and `distanceFalloff` continue to work normally.
+Neural-Performance uses 8 AO samples with 4 denoise samples and runs a model specialized for low sample counts; Neural-Low, Neural-Medium, and Neural-High use 16 AO samples with 4, 8, and 16 denoise samples respectively. All four automatically enable neural denoising and use its required configuration: a denoise radius of 12, two denoise passes, and full resolution. `aoRadius` and `distanceFalloff` continue to work normally.
 
 You can also configure neural denoising manually with `configuration.neuralDenoise`. It supports:
 
@@ -202,7 +202,8 @@ The quality modes are as follows:
 | Medium (Temporally stable and barely any noise) | 16 | 8 | 12 | No | High-End Mobile, laptops, desktops |
 | High (Significantly sharper AO, barely any noise) | 64 | 8 | 6 | No | Desktops, dedicated GPUs  |
 | Ultra (Sharp AO, No visible noise whatsoever) | 64 | 16 | 6 | No | Desktops, dedicated GPUs|
-| Neural-Low (Clean, stable AO at the lowest neural cost) | 16 | 4 | 12 | Yes | Laptops and desktops |
+| Neural-Performance (Clean, stable AO at the lowest neural cost) | 8 | 4 | 12 | Yes | High-End Mobile, iGPUs, laptops |
+| Neural-Low (Cleaner AO with more AO samples) | 16 | 4 | 12 | Yes | Laptops and desktops |
 | Neural-Medium (Clean, stable AO with additional smoothing) | 16 | 8 | 12 | Yes | Laptops and desktops |
 | Neural-High (Cleanest neural output) | 16 | 16 | 12 | Yes | Desktops and dedicated GPUs |
 

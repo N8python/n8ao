@@ -4,6 +4,12 @@ import { FullScreenTriangle } from "./FullScreenTriangle.js";
 import { EffectShader } from './EffectShader.js';
 import { EffectCompositer } from './EffectCompositer.js';
 import { PoissionBlur } from './PoissionBlur.js';
+import {
+    neuralDenoiseShaderFor,
+    neuralModelFor,
+    neuralSupportedAOSamples,
+    neuralSupportedDenoiseSamples
+} from './NeuralDenoise.js';
 import { DepthDownSample } from "./DepthDownSample.js";
 import bluenoiseBits from './BlueNoise.js';
 import { N8AOPass, DepthType } from './N8AOPass.js';
@@ -109,16 +115,25 @@ class N8AOPostPass extends Pass {
                 }
                 if (propName === 'aoSamples' && oldProp !== value) {
                     this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+                    if (target.neuralDenoise) {
+                        // The neural model and its AO-count input depend on aoSamples.
+                        this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+                    }
                 }
                 if (propName === 'denoiseSamples' && oldProp !== value) {
                     this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 }
                 if (propName === 'neuralDenoise' && oldProp !== value) {
-                    const reconfigureAO = value && (target.aoSamples !== 16 || target.halfRes);
+                    const [lowAO, highAO] = neuralSupportedAOSamples;
+                    const [lowDenoise, highDenoise] = neuralSupportedDenoiseSamples;
+                    const unsupportedAO = target.aoSamples < lowAO || target.aoSamples > highAO;
+                    const reconfigureAO = value && (unsupportedAO || target.halfRes);
                     const disableHalfRes = value && target.halfRes;
                     if (value) {
-                        target.aoSamples = 16;
-                        if (![4, 8, 16].includes(target.denoiseSamples)) {
+                        if (unsupportedAO) {
+                            target.aoSamples = 16;
+                        }
+                        if (target.denoiseSamples < lowDenoise || target.denoiseSamples > highDenoise) {
                             target.denoiseSamples = 8;
                         }
                         target.denoiseRadius = 12;
@@ -461,6 +476,9 @@ class N8AOPostPass extends Pass {
             "__N8AO_DENOISE_SAMPLES__",
             this.configuration.denoiseSamples
         );
+        const neuralShader = this.configuration.neuralDenoise
+            ? neuralDenoiseShaderFor(this.configuration.aoSamples, this.configuration.denoiseSamples)
+            : null;
         if (depthBufferType === DepthType.Log) {
             p.fragmentShader = "#define LOGDEPTH\n" + p.fragmentShader;
         } else if (depthBufferType === DepthType.Reverse) {
@@ -475,16 +493,18 @@ class N8AOPostPass extends Pass {
         if (this.neuralDenoiseMaterial) {
             this.neuralDenoiseMaterial.dispose();
         }
-        this.standardDenoiseMaterial = new THREE.ShaderMaterial(p);
-        this.neuralDenoiseMaterial = this.configuration.neuralDenoise
-            && [4, 8, 16].includes(this.configuration.denoiseSamples)
+        this.standardDenoiseMaterial = new THREE.ShaderMaterial({
+            ...p,
+            fragmentShader: p.fragmentShader.replace("__N8AO_NEURAL_DENOISE__", "")
+        });
+        this.neuralDenoiseMaterial = neuralShader
             ? new THREE.ShaderMaterial({
                 ...p,
                 glslVersion: THREE.GLSL3,
                 fragmentShader: "#define NEURAL_DENOISE\n"
                     + "layout(location = 0) out highp vec4 neuralFragColor;\n"
                     + "#define gl_FragColor neuralFragColor\n"
-                    + p.fragmentShader
+                    + p.fragmentShader.replace("__N8AO_NEURAL_DENOISE__", neuralShader)
             })
             : null;
         if (this.poissonBlurQuad) {
@@ -500,11 +520,13 @@ class N8AOPostPass extends Pass {
         }
 
         const incompatibilities = [];
-        if (this.configuration.aoSamples !== 16) {
-            incompatibilities.push(`aoSamples is ${this.configuration.aoSamples} (expected 16)`);
-        }
-        if (![4, 8, 16].includes(this.configuration.denoiseSamples)) {
-            incompatibilities.push(`denoiseSamples is ${this.configuration.denoiseSamples} (expected 4, 8, or 16)`);
+        if (!neuralModelFor(this.configuration.aoSamples, this.configuration.denoiseSamples)) {
+            const [lowAO, highAO] = neuralSupportedAOSamples;
+            const [lowDenoise, highDenoise] = neuralSupportedDenoiseSamples;
+            incompatibilities.push(
+                `aoSamples ${this.configuration.aoSamples} with denoiseSamples ${this.configuration.denoiseSamples}`
+                + ` is not supported (expected aoSamples ${lowAO}-${highAO} and denoiseSamples ${lowDenoise}-${highDenoise})`
+            );
         }
         if (this.configuration.denoiseRadius !== 12) {
             incompatibilities.push(`denoiseRadius is ${this.configuration.denoiseRadius} (expected 12)`);

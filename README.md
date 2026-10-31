@@ -126,9 +126,9 @@ The easiest way to enable it is with one of the neural quality modes:
 n8aopass.setQualityMode("Neural-Medium"); // "Neural-Low", "Neural-Medium", or "Neural-High"
 ```
 
-These modes use 4, 8, and 16 denoise samples respectively. All three automatically enable neural denoising and use its required configuration: 16 AO samples, a denoise radius of 12, two denoise passes, and full resolution. `aoRadius` and `distanceFalloff` continue to work normally.
+These modes use 16 AO samples with 4, 8, and 16 denoise samples respectively. All three automatically enable neural denoising and use its required configuration: a denoise radius of 12, two denoise passes, and full resolution. `aoRadius` and `distanceFalloff` continue to work normally.
 
-You can also configure neural denoising manually with `configuration.neuralDenoise`, but the neural quality modes are recommended. If a required parameter is changed while neural denoising is enabled, N8AO falls back to standard denoising rather than throwing an error and prints a warning to the console.
+You can also configure neural denoising manually with `configuration.neuralDenoise`. It supports 4 to 64 AO samples and 2 to 16 denoise samples; a model specialized for 4 to 8 AO samples with 2 to 8 denoise samples is picked automatically in that range, which makes cheaper setups such as 8 AO samples with 4 denoise samples noticeably cleaner. If a required parameter is changed to an unsupported value while neural denoising is enabled, N8AO falls back to standard denoising rather than throwing an error and prints a warning to the console.
 
 | <img src="example/tutorial/neuraldenoiseoff.jpeg" alt="Neural denoising disabled"/> | <img src="example/tutorial/neuraldenoise4.jpeg" alt="Neural denoising with 4 samples"/> | <img src="example/tutorial/neuraldenoise8.jpeg" alt="Neural denoising with 8 samples"/> | <img src="example/tutorial/neuraldenoise16.jpeg" alt="Neural denoising with 16 samples"/> |
 |:---:|:---:|:---:|:---:|

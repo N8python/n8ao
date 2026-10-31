@@ -132,7 +132,6 @@ async function main() {
             }
             effectController.denoiseRadius = 12;
             effectController.denoiseIterations = 2;
-            effectController.halfRes = false;
             gui.controllersRecursive().forEach((controller) => controller.updateDisplay());
         }
     });

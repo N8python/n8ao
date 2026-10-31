@@ -1592,21 +1592,14 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
                     const [lowAO, highAO] = (0, $1193f60a44983e43$export$6605e6adeefeae39);
                     const [lowDenoise, highDenoise] = (0, $1193f60a44983e43$export$979feb7d92dee6eb);
                     const unsupportedAO = target.aoSamples < lowAO || target.aoSamples > highAO;
-                    const reconfigureAO = value && (unsupportedAO || target.halfRes);
-                    const disableHalfRes = value && target.halfRes;
+                    const reconfigureAO = value && unsupportedAO;
                     if (value) {
                         if (unsupportedAO) target.aoSamples = 16;
                         if (target.denoiseSamples < lowDenoise || target.denoiseSamples > highDenoise) target.denoiseSamples = 8;
                         target.denoiseRadius = 12;
                         target.denoiseIterations = 2;
-                        target.halfRes = false;
                     }
                     if (reconfigureAO) this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
-                    if (disableHalfRes) {
-                        this.configureHalfResTargets();
-                        this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
-                        this.setSize(this.width, this.height);
-                    }
                     this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 }
                 if (propName === "halfRes" && oldProp !== value) {
@@ -1923,7 +1916,6 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         }
         if (this.configuration.denoiseRadius !== 12) incompatibilities.push(`denoiseRadius is ${this.configuration.denoiseRadius} (expected 12)`);
         if (this.configuration.denoiseIterations !== 2) incompatibilities.push(`denoiseIterations is ${this.configuration.denoiseIterations} (expected 2)`);
-        if (this.configuration.halfRes) incompatibilities.push("halfRes is enabled (expected full resolution)");
         if (incompatibilities.length > 0) {
             const warningKey = incompatibilities.join("; ");
             if (warningKey !== this._neuralDenoiseWarningKey) {
@@ -2375,21 +2367,14 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
                     const [lowAO, highAO] = (0, $1193f60a44983e43$export$6605e6adeefeae39);
                     const [lowDenoise, highDenoise] = (0, $1193f60a44983e43$export$979feb7d92dee6eb);
                     const unsupportedAO = target.aoSamples < lowAO || target.aoSamples > highAO;
-                    const reconfigureAO = value && (unsupportedAO || target.halfRes);
-                    const disableHalfRes = value && target.halfRes;
+                    const reconfigureAO = value && unsupportedAO;
                     if (value) {
                         if (unsupportedAO) target.aoSamples = 16;
                         if (target.denoiseSamples < lowDenoise || target.denoiseSamples > highDenoise) target.denoiseSamples = 8;
                         target.denoiseRadius = 12;
                         target.denoiseIterations = 2;
-                        target.halfRes = false;
                     }
                     if (reconfigureAO) this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
-                    if (disableHalfRes) {
-                        this.configureHalfResTargets();
-                        this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
-                        this.setSize(this.width, this.height);
-                    }
                     this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 }
                 if (propName === "halfRes" && oldProp !== value) {
@@ -2705,7 +2690,6 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         }
         if (this.configuration.denoiseRadius !== 12) incompatibilities.push(`denoiseRadius is ${this.configuration.denoiseRadius} (expected 12)`);
         if (this.configuration.denoiseIterations !== 2) incompatibilities.push(`denoiseIterations is ${this.configuration.denoiseIterations} (expected 2)`);
-        if (this.configuration.halfRes) incompatibilities.push("halfRes is enabled (expected full resolution)");
         if (incompatibilities.length > 0) {
             const warningKey = incompatibilities.join("; ");
             if (warningKey !== this._neuralDenoiseWarningKey) {

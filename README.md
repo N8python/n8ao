@@ -126,13 +126,13 @@ The easiest way to enable it is with one of the neural quality modes:
 n8aopass.setQualityMode("Neural-Medium"); // "Neural-Performance", "Neural-Low", "Neural-Medium", or "Neural-High"
 ```
 
-Neural-Performance uses 8 AO samples with 4 denoise samples and runs a model specialized for low sample counts; Neural-Low, Neural-Medium, and Neural-High use 16 AO samples with 4, 8, and 16 denoise samples respectively. All four automatically enable neural denoising and use its required configuration: a denoise radius of 12, two denoise passes, and full resolution. `aoRadius` and `distanceFalloff` continue to work normally.
+Neural-Performance uses 8 AO samples with 4 denoise samples and runs a model specialized for low sample counts; Neural-Low, Neural-Medium, and Neural-High use 16 AO samples with 4, 8, and 16 denoise samples respectively. All four automatically enable neural denoising and use its required configuration (a denoise radius of 12 and two denoise passes) at full resolution. `aoRadius` and `distanceFalloff` continue to work normally.
 
 You can also configure neural denoising manually with `configuration.neuralDenoise`. It supports:
 
 - `aoSamples` from 4 to 64
 - `denoiseSamples` from 2 to 16
-- `denoiseRadius` of 12, `denoiseIterations` of 2, and `halfRes` off
+- `denoiseRadius` of 12 and `denoiseIterations` of 2
 
 Setting `neuralDenoise = true` applies the last line for you and keeps your sample counts if they are in range (otherwise `aoSamples` becomes 16 and `denoiseSamples` becomes 8). A model specialized for 4 to 8 AO samples with 2 to 8 denoise samples is picked automatically in that range, which makes cheaper setups such as 8 AO samples with 4 denoise samples noticeably cleaner. If a parameter is later changed to an unsupported value while neural denoising is enabled, N8AO falls back to standard denoising rather than throwing an error and prints a warning to the console.
 
@@ -186,7 +186,7 @@ This will cause the AO to be calculated at half the resolution of the screen, an
 
 The half-resolution mode uses depth-aware upscaling by default, and this generally incurs a fixed cost of around 1ms. The AO effect looks horrible without depth-aware upscaling, so it is not recommended to disable it. However, if performance is truly that critical, you can do so by setting `configuration.depthAwareUpsampling` to `false`.
 
-On top of half-resolution mode, `N8AOPass` comes with a wide variety of quality presets, and you can even manually edit the settings to your liking. The standard modes can be used with or without half-resolution mode; the neural modes automatically use full resolution. You can switch between quality modes (the default is `Medium`) by doing:
+On top of half-resolution mode, `N8AOPass` comes with a wide variety of quality presets, and you can even manually edit the settings to your liking. Every mode, neural ones included, can be used with or without half-resolution mode; the neural modes set full resolution, so enable `halfRes` after choosing one. Half resolution with neural denoising is the cheapest way to get clean AO, though it gives up the finest detail: with 8 AO samples and 4 denoise samples it costs about 40% as much as at full resolution, for slightly softer AO. You can switch between quality modes (the default is `Medium`) by doing:
 
 ```js
 n8aopass.setQualityMode("Low"); // Or any other quality mode

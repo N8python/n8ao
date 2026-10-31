@@ -136,8 +136,7 @@ class N8AOPass extends Pass {
                     const [lowAO, highAO] = neuralSupportedAOSamples;
                     const [lowDenoise, highDenoise] = neuralSupportedDenoiseSamples;
                     const unsupportedAO = target.aoSamples < lowAO || target.aoSamples > highAO;
-                    const reconfigureAO = value && (unsupportedAO || target.halfRes);
-                    const disableHalfRes = value && target.halfRes;
+                    const reconfigureAO = value && unsupportedAO;
                     if (value) {
                         if (unsupportedAO) {
                             target.aoSamples = 16;
@@ -147,15 +146,9 @@ class N8AOPass extends Pass {
                         }
                         target.denoiseRadius = 12;
                         target.denoiseIterations = 2;
-                        target.halfRes = false;
                     }
                     if (reconfigureAO) {
                         this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
-                    }
-                    if (disableHalfRes) {
-                        this.configureHalfResTargets();
-                        this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
-                        this.setSize(this.width, this.height);
                     }
                     this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 }
@@ -535,9 +528,6 @@ class N8AOPass extends Pass {
         }
         if (this.configuration.denoiseIterations !== 2) {
             incompatibilities.push(`denoiseIterations is ${this.configuration.denoiseIterations} (expected 2)`);
-        }
-        if (this.configuration.halfRes) {
-            incompatibilities.push('halfRes is enabled (expected full resolution)');
         }
 
         if (incompatibilities.length > 0) {

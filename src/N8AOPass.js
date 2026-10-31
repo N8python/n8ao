@@ -157,6 +157,10 @@ class N8AOPass extends Pass {
                 }
                 if (propName === "halfRes" && oldProp !== value) {
                     this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+                    if (target.neuralDenoise) {
+                        // Half resolution has its own neural models.
+                        this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+                    }
                     this.configureHalfResTargets();
                     this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                     this.setSize(this.width, this.height);
@@ -475,7 +479,8 @@ class N8AOPass extends Pass {
             this.configuration.denoiseSamples
         );
         const neuralShader = this.configuration.neuralDenoise
-            ? neuralDenoiseShaderFor(this.configuration.aoSamples, this.configuration.denoiseSamples)
+            ? neuralDenoiseShaderFor(
+                this.configuration.aoSamples, this.configuration.denoiseSamples, this.configuration.halfRes)
             : null;
         if (depthBufferType === DepthType.Log) {
             p.fragmentShader = "#define LOGDEPTH\n" + p.fragmentShader;
@@ -518,7 +523,9 @@ class N8AOPass extends Pass {
         }
 
         const incompatibilities = [];
-        if (!neuralModelFor(this.configuration.aoSamples, this.configuration.denoiseSamples)) {
+        if (!neuralModelFor(
+            this.configuration.aoSamples, this.configuration.denoiseSamples, this.configuration.halfRes
+        )) {
             const [lowAO, highAO] = neuralSupportedAOSamples;
             const [lowDenoise, highDenoise] = neuralSupportedDenoiseSamples;
             incompatibilities.push(
@@ -760,8 +767,11 @@ class N8AOPass extends Pass {
                     this.poissonBlurQuad.material.uniforms['resolution'].value = (this.configuration.halfRes ? this._r.clone().multiplyScalar(1 / 2).floor() : this._r);
                     this.poissonBlurQuad.material.uniforms['time'].value = performance.now() / 1000;
                     this.poissonBlurQuad.material.uniforms['blueNoise'].value = this.bluenoise;
+                    // At half resolution the radius is halved to keep its screen size, except with
+                    // neural denoising, whose half-resolution models are trained at the full radius
+                    // in half-resolution pixels (moving splotches are much weaker that way).
                     this.poissonBlurQuad.material.uniforms['radius'].value = this.configuration.denoiseRadius * (
-                        this.configuration.halfRes ? 1 / 2 : 1
+                        this.configuration.halfRes && !useNeuralDenoise ? 1 / 2 : 1
                     );
                     this.poissonBlurQuad.material.uniforms['worldRadius'].value = trueRadius;
                     this.poissonBlurQuad.material.uniforms['distanceFalloff'].value = this.configuration.distanceFalloff;

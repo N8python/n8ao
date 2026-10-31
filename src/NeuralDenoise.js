@@ -1,5 +1,7 @@
 import generalModel from './NeuralDenoiseModel.json';
 import lowEndModel from './NeuralDenoiseLowEndModel.json';
+import halfResModel from './NeuralDenoiseHalfResModel.json';
+import halfResLowEndModel from './NeuralDenoiseHalfResLowEndModel.json';
 
 // Attention residual denoiser applied in the second denoise pass. Each geometry tap is
 // encoded from five frame-invariant features (in-plane distance, signed height, normal
@@ -12,10 +14,13 @@ import lowEndModel from './NeuralDenoiseLowEndModel.json';
 // normalization is folded into the first layers. A shader is generated per configuration,
 // so a model's log2(aoSamples) center input is a constant folded into the center bias.
 //
-// Models are tried in order and the first whose supported ranges cover the configuration
-// is used: a specialist trained on 4-8 AO samples and 2-8 denoise taps, then the general
-// model trained at 16 AO samples, which was tested across 4-64 AO samples and 2-16 taps.
-const MODELS = [lowEndModel, generalModel];
+// Models are tried in order and the first trained for the configuration's resolution whose
+// supported ranges cover it is used: a specialist trained on 4-8 AO samples and 2-8 denoise
+// taps, then a general model trained at 16 AO samples and tested across 4-64 AO samples and
+// 2-16 taps. Each pair exists twice: trained at full resolution (denoise radius 12) and on
+// half-resolution data (denoise radius 12 in half-res pixels, i.e. 24 screen pixels), which
+// moves less in motion than the full-resolution pair at half resolution.
+const MODELS = [lowEndModel, generalModel, halfResLowEndModel, halfResModel];
 
 const TAP_FEATURES = 5;
 // AO, log radius, log falloff and the view direction in the tangent frame.
@@ -52,6 +57,7 @@ for (const model of MODELS) {
     if (
         model.architecture !== 'attention-v3-pilot'
         || model.formatVersion !== 5
+        || (model.halfResolution !== undefined && typeof model.halfResolution !== 'boolean')
         || !isRange(model.supportedAOSamples)
         || !isRange(model.supportedDenoiseSamples)
         || model.supportedDenoiseSamples[1] > 16
@@ -76,8 +82,9 @@ for (const model of MODELS) {
 const inRange = ([low, high], value) => value >= low && value <= high;
 
 // The model for a configuration, or null when no bundled model supports it.
-const neuralModelFor = (aoSamples, denoiseSamples) => MODELS.find((model) => (
-    inRange(model.supportedAOSamples, aoSamples) && inRange(model.supportedDenoiseSamples, denoiseSamples)
+const neuralModelFor = (aoSamples, denoiseSamples, halfResolution = false) => MODELS.find((model) => (
+    Boolean(model.halfResolution) === Boolean(halfResolution)
+    && inRange(model.supportedAOSamples, aoSamples) && inRange(model.supportedDenoiseSamples, denoiseSamples)
 )) ?? null;
 
 const glslFloat = (value) => {
@@ -233,8 +240,8 @@ ${range(headWidth).map((row) => `        float head${row} = max(${sumTerms([
 const shaderCache = new Map();
 
 // GLSL for the model that covers this configuration, or null when none does.
-const neuralDenoiseShaderFor = (aoSamples, denoiseSamples) => {
-    const model = neuralModelFor(aoSamples, denoiseSamples);
+const neuralDenoiseShaderFor = (aoSamples, denoiseSamples, halfResolution = false) => {
+    const model = neuralModelFor(aoSamples, denoiseSamples, halfResolution);
     if (!model) {
         return null;
     }

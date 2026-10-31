@@ -639,16 +639,19 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
       float distanceFalloffToUse =screenSpaceRadius ?
           radiusToUse * distanceFalloff
       : distanceFalloff;
-        for(float x = -1.0; x <= 1.0; x++) {
-            for(float y = -1.0; y <= 1.0; y++) {
-                vec2 offset = vec2(x, y);
-                ivec2 p = ivec2(
-                    (vUv * resolution * 0.5) + offset
-                );
-                vec2 pUv = vec2(p) / (resolution * 0.5);
+        ivec2 halfSize = textureSize(tDiffuse, 0);
+        ivec2 base = min(ivec2(vUv * resolution * 0.5), halfSize - 1);
+        for(int x = -1; x <= 1; x++) {
+            for(int y = -1; y <= 1; y++) {
+                ivec2 p = clamp(base + ivec2(x, y), ivec2(0), halfSize - 1);
+                // Half-res depth and normals describe the half-res pixel's center.
+                vec2 pUv = (vec2(p) + 0.5) / vec2(halfSize);
                 float sampleDepth = texelFetch(downsampledDepth,p, 0).x;
                 vec4 sampleInfo = texelFetch(tDiffuse, p, 0);
-                vec3 normalSample = sampleInfo.gba * 2.0 - 1.0;
+                // The AO target keeps only the normal's x and y (its alpha is the accumulation
+                // weight), so z is rebuilt facing the camera.
+                vec2 normalXY = sampleInfo.gb * 2.0 - 1.0;
+                vec3 normalSample = vec3(normalXY, sqrt(max(1.0 - dot(normalXY, normalXY), 0.0)));
                 vec3 worldPosSample = getWorldPos(sampleDepth, pUv);
                 float tangentPlaneDist = abs(dot(worldPosSample - worldPos, normal));
                 float rangeCheck = exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0);

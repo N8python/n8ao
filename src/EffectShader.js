@@ -210,7 +210,7 @@ void main() {
       float bias = (min(
         0.1,
         distanceFalloffToUse * 0.1
-      ) / near) * fwidth(distance(worldPos, cameraPos)) / radiusToUse;
+      ) / near) * fwidth(length(worldPos)) / radiusToUse;
       bias = biasAdjustment.x + biasAdjustment.y * bias;
       mediump float offsetMove = noise.g;
       mediump float offsetMoveInv = 1.0 / FSAMPLES;

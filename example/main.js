@@ -126,7 +126,13 @@ async function main() {
     gui.add(effectController, "denoiseIterations", 1.0, 10.0, 1.0);
     gui.add(effectController, "neuralDenoise").onChange((enabled) => {
         if (enabled) {
-            effectController.aoSamples = 16;
+            // Neural denoising supports 4-64 AO samples and 2-16 denoise samples.
+            if (effectController.aoSamples < 4 || effectController.aoSamples > 64) {
+                effectController.aoSamples = 16;
+            }
+            if (effectController.denoiseSamples < 2 || effectController.denoiseSamples > 16) {
+                effectController.denoiseSamples = 8;
+            }
             effectController.denoiseRadius = 12;
             effectController.denoiseIterations = 2;
             effectController.halfRes = false;

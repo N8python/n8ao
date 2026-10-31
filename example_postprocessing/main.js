@@ -112,7 +112,8 @@ async function main() {
         color: [0, 0, 0],
         colorMultiply: true,
         accumulate: false,
-        neuralDenoise: false
+        neuralDenoise: false,
+        neuralUpsample: true
     };
     const gui = new GUI();
     const aor = gui.add(effectController, "aoRadius", 1.0, 10.0, 0.01);
@@ -156,6 +157,8 @@ async function main() {
         df.updateDisplay();
     });
     gui.add(effectController, "halfRes");
+    // Learned upsampling for half resolution with neural denoising.
+    gui.add(effectController, "neuralUpsample");
     gui.add(effectController, "depthAwareUpsampling");
     gui.add(effectController, "transparencyAware");
     gui.add(effectController, "intensity", 0.0, 10.0, 0.01);
@@ -253,6 +256,7 @@ async function main() {
         n8aopass.configuration.color = new THREE.Color(effectController.color[0], effectController.color[1], effectController.color[2]);
         n8aopass.configuration.screenSpaceRadius = effectController.screenSpaceRadius;
         n8aopass.configuration.halfRes = effectController.halfRes;
+        n8aopass.configuration.neuralUpsample = effectController.neuralUpsample;
         n8aopass.configuration.depthAwareUpsampling = effectController.depthAwareUpsampling;
         n8aopass.configuration.colorMultiply = effectController.colorMultiply;
         n8aopass.configuration.accumulate = effectController.accumulate;

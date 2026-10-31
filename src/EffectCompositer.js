@@ -173,6 +173,9 @@ const EffectCompositer = {
       return normalize(cross(dpdx, dpdy));
   }
 
+#ifdef NEURAL_UPSAMPLE
+    __N8AO_NEURAL_UPSAMPLE__
+#endif
     #include <common>
     #include <dithering_pars_fragment>
     void main() {
@@ -197,6 +200,9 @@ const EffectCompositer = {
       float distanceFalloffToUse =screenSpaceRadius ?
           radiusToUse * distanceFalloff
       : distanceFalloff;
+#ifdef NEURAL_UPSAMPLE
+        texel = vec4(neuralUpsample(worldPos, normal), 0.0, 0.0, 1.0);
+#else
         ivec2 halfSize = textureSize(tDiffuse, 0);
         ivec2 base = min(ivec2(vUv * resolution * 0.5), halfSize - 1);
         for(int x = -1; x <= 1; x++) {
@@ -223,6 +229,7 @@ const EffectCompositer = {
         } else {
             texel /= totalWeight;
         }
+#endif
     }
         #else
         vec4 texel = texture2D(tDiffuse, vUv);

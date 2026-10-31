@@ -10,6 +10,7 @@ import {
     neuralSupportedAOSamples,
     neuralSupportedDenoiseSamples
 } from './NeuralDenoise.js';
+import { neuralUpsampleShader } from './NeuralUpsample.js';
 import { DepthDownSample } from "./DepthDownSample.js";
 import bluenoiseBits from './BlueNoise.js';
 import { N8AOPass, DepthType } from './N8AOPass.js';
@@ -74,7 +75,8 @@ class N8AOPostPass extends Pass {
          * halfRes: boolean,
          * depthAwareUpsampling: boolean
          * colorMultiply: boolean,
-         * neuralDenoise: boolean
+         * neuralDenoise: boolean,
+         * neuralUpsample: boolean
          * }
          */
         this.autosetGamma = true;
@@ -99,7 +101,8 @@ class N8AOPostPass extends Pass {
             colorMultiply: true,
             transparencyAware: false,
             accumulate: false,
-            neuralDenoise: false
+            neuralDenoise: false,
+            neuralUpsample: true
         }, {
             set: (target, propName, value) => {
                 const oldProp = target[propName];
@@ -558,11 +561,24 @@ class N8AOPostPass extends Pass {
             if (this.configuration.halfRes && this.configuration.depthAwareUpsampling) {
                 e.fragmentShader = "#define HALFRES\n" + e.fragmentShader;
             }
+            this.standardCompositerMaterial?.dispose();
+            this.neuralCompositerMaterial?.dispose();
+            this.standardCompositerMaterial = new THREE.ShaderMaterial({
+                ...e,
+                fragmentShader: e.fragmentShader.replace("__N8AO_NEURAL_UPSAMPLE__", "")
+            });
+            // Learned upsampling for half-resolution neural denoising, picked per frame.
+            this.neuralCompositerMaterial = this.configuration.halfRes && this.configuration.depthAwareUpsampling
+                ? new THREE.ShaderMaterial({
+                    ...e,
+                    fragmentShader: "#define NEURAL_UPSAMPLE\n"
+                        + e.fragmentShader.replace("__N8AO_NEURAL_UPSAMPLE__", neuralUpsampleShader)
+                })
+                : null;
             if (this.effectCompositerQuad) {
-                this.effectCompositerQuad.material.dispose();
-                this.effectCompositerQuad.material = new THREE.ShaderMaterial(e);
+                this.effectCompositerQuad.material = this.standardCompositerMaterial;
             } else {
-                this.effectCompositerQuad = new FullScreenTriangle(new THREE.ShaderMaterial(e));
+                this.effectCompositerQuad = new FullScreenTriangle(this.standardCompositerMaterial);
             }
         }
         /**
@@ -778,6 +794,11 @@ class N8AOPostPass extends Pass {
             // Now, we have the blurred AO in writeTargetInternal
             // End the blur
             // Start the composition
+            // The learned upsampler was trained on neural-denoised AO, so it runs only with it.
+            this.effectCompositerQuad.material = this.neuralCompositerMaterial && this.configuration.neuralUpsample
+                && this.shouldUseNeuralDenoise()
+                ? this.neuralCompositerMaterial
+                : this.standardCompositerMaterial;
             if (this.configuration.transparencyAware) {
                 this.effectCompositerQuad.material.uniforms["transparencyDWFalse"].value = this.transparencyRenderTargetDWFalse.texture;
                 this.effectCompositerQuad.material.uniforms["transparencyDWTrue"].value = this.transparencyRenderTargetDWTrue.texture;

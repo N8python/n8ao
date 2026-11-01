@@ -230,8 +230,11 @@ void main() {
         offset.z = offset.z * 0.5 + 0.5;
         #endif
         
-        if (all(greaterThan(offset.xyz * (1.0 - offset.xyz), vec3(0.0)))) {
-          float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;
+        // Every sample reads depth (clamped on screen) and off-screen ones are dropped with a
+        // select, not a branch, so the compiler can issue all depth reads up front.
+        bool insideScreen = all(greaterThan(offset.xyz * (1.0 - offset.xyz), vec3(0.0)));
+        {
+          float sampleDepth = textureLod(sceneDepth, clamp(offset.xy, 0.0, 1.0), 0.0).x;
 
           /*#ifdef LOGDEPTH
           float distSample = linearize_depth_log(sampleDepth, near, far);
@@ -268,12 +271,12 @@ void main() {
           
           mediump float rangeCheck = smoothstep(0.0, 1.0, distanceFalloffToUse / (abs(distSample - distWorld)));
           vec2 diff = gl_FragCoord.xy - floor(offset.xy * resolution);
-          occluded += rangeCheck * float(distSample != distWorld) * float(sampleDepth != depth) * step(distSample + bias, distWorld) * step(
+          occluded += insideScreen ? rangeCheck * float(distSample != distWorld) * float(sampleDepth != depth) * step(distSample + bias, distWorld) * step(
             1.0,
             dot(diff, diff)
-          );
+          ) : 0.0;
           
-          totalWeight ++;
+          totalWeight += insideScreen ? 1.0 : 0.0;
         }
       }
       float occ = clamp(1.0 - occluded / (totalWeight == 0.0 ? 1.0 : totalWeight), 0.0, 1.0);

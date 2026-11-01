@@ -325,8 +325,11 @@ void main() {
         offset.z = offset.z * 0.5 + 0.5;
         #endif
         
-        if (all(greaterThan(offset.xyz * (1.0 - offset.xyz), vec3(0.0)))) {
-          float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;
+        // Every sample reads depth (clamped on screen) and off-screen ones are dropped with a
+        // select, not a branch, so the compiler can issue all depth reads up front.
+        bool insideScreen = all(greaterThan(offset.xyz * (1.0 - offset.xyz), vec3(0.0)));
+        {
+          float sampleDepth = textureLod(sceneDepth, clamp(offset.xy, 0.0, 1.0), 0.0).x;
 
           /*#ifdef LOGDEPTH
           float distSample = linearize_depth_log(sampleDepth, near, far);
@@ -363,12 +366,12 @@ void main() {
           
           mediump float rangeCheck = smoothstep(0.0, 1.0, distanceFalloffToUse / (abs(distSample - distWorld)));
           vec2 diff = gl_FragCoord.xy - floor(offset.xy * resolution);
-          occluded += rangeCheck * float(distSample != distWorld) * float(sampleDepth != depth) * step(distSample + bias, distWorld) * step(
+          occluded += insideScreen ? rangeCheck * float(distSample != distWorld) * float(sampleDepth != depth) * step(distSample + bias, distWorld) * step(
             1.0,
             dot(diff, diff)
-          );
+          ) : 0.0;
           
-          totalWeight ++;
+          totalWeight += insideScreen ? 1.0 : 0.0;
         }
       }
       float occ = clamp(1.0 - occluded / (totalWeight == 0.0 ? 1.0 : totalWeight), 0.0, 1.0);
@@ -1217,15 +1220,37 @@ const $1193f60a44983e43$var$generateShader = (model, aoSamples)=>{
     const centerEncoderShader = $1193f60a44983e43$var$encoderShader("neuralEncodeCenter", $1193f60a44983e43$var$foldedLinear(model.globalWeights, model.globalBias, model.globalFeatureMean, model.globalFeatureInverseStandardDeviation, tokenWidth, $1193f60a44983e43$var$CENTER_FEATURES, model.aoCountFeature ? [
         Math.log2(aoSamples)
     ] : []), $1193f60a44983e43$var$CENTER_FEATURES);
+    // The key projection is folded into the queries and the value projection into the head, so
+    // a tap costs one dot product per query instead of two 6x6 projections plus the dot products:
+    //   score_q = s * q_q . (K t) = (s K^T q_q) . t, and summing V t over taps equals V (sum of t).
+    // neuralMakeQueries therefore returns s K^T q (still width x queries), neuralAttend sums
+    // weighted tokens rather than values, and neuralHead applies V through its folded weights.
+    const scale = 1 / Math.sqrt(tokenWidth);
+    const key = (row, column)=>model.keyProjectionWeights[row * tokenWidth + column];
+    const value = (row, column)=>model.valueProjectionWeights[row * tokenWidth + column];
+    const foldedQueryWeight = (index, column)=>{
+        const query = Math.floor(index / tokenWidth);
+        const input = index % tokenWidth;
+        return scale * $1193f60a44983e43$var$range(tokenWidth).reduce((sum, row)=>sum + key(row, input) * model.queryProjectionWeights[(query * tokenWidth + row) * tokenWidth + column], 0);
+    };
+    const foldedQueryBias = (index)=>{
+        const query = Math.floor(index / tokenWidth);
+        const input = index % tokenWidth;
+        return scale * $1193f60a44983e43$var$range(tokenWidth).reduce((sum, row)=>sum + key(row, input) * model.summaryQueries[query * tokenWidth + row], 0);
+    };
+    const foldedHeadWeight = (row, index)=>{
+        const query = Math.floor(index / tokenWidth);
+        const input = index % tokenWidth;
+        return $1193f60a44983e43$var$range(tokenWidth).reduce((sum, output)=>sum + model.headWeights[row * queryWidth + query * tokenWidth + output] * value(output, input), 0);
+    };
     const queryShader = `
     void neuralMakeQueries(float token[NEURAL_TOKEN_WIDTH], out float queries[NEURAL_QUERY_WIDTH]) {
 ${$1193f60a44983e43$var$range(queryWidth).map((index)=>`        queries[${index}] = ${$1193f60a44983e43$var$sumTerms([
-            $1193f60a44983e43$var$constantTerm(model.summaryQueries[index]),
-            ...$1193f60a44983e43$var$range(tokenWidth).map((column)=>$1193f60a44983e43$var$weightedTerm(model.queryProjectionWeights[index * tokenWidth + column], `token[${column}]`))
+            $1193f60a44983e43$var$constantTerm(foldedQueryBias(index)),
+            ...$1193f60a44983e43$var$range(tokenWidth).map((column)=>$1193f60a44983e43$var$weightedTerm(foldedQueryWeight(index, column), `token[${column}]`))
         ])};`).join("\n")}
     }
 `;
-    const projection = (weights, prefix)=>$1193f60a44983e43$var$range(tokenWidth).map((row)=>`        float ${prefix}${row} = ${$1193f60a44983e43$var$sumTerms($1193f60a44983e43$var$range(tokenWidth).map((column)=>$1193f60a44983e43$var$weightedTerm(weights[row * tokenWidth + column], `token[${column}]`)))};`).join("\n");
     // Scores stay small, so softmax (shift-invariant) needs no running maximum; the clamp only
     // guards against overflow.
     const attendShader = `
@@ -1235,13 +1260,11 @@ ${$1193f60a44983e43$var$range(queryWidth).map((index)=>`        queries[${index}
         inout float summary[NEURAL_QUERY_WIDTH],
         inout float denominator[NEURAL_QUERY_COUNT]
     ) {
-${projection(model.keyProjectionWeights, "key")}
-${projection(model.valueProjectionWeights, "value")}
         float weight;
 ${$1193f60a44983e43$var$range(queryCount).map((query)=>[
-            `        weight = exp(min(${$1193f60a44983e43$var$glslFloat(1 / Math.sqrt(tokenWidth))} * (${$1193f60a44983e43$var$range(tokenWidth).map((column)=>`queries[${query * tokenWidth + column}] * key${column}`).join(" + ")}), 60.0));`,
+            `        weight = exp(min(${$1193f60a44983e43$var$range(tokenWidth).map((column)=>`queries[${query * tokenWidth + column}] * token[${column}]`).join(" + ")}, 60.0));`,
             `        denominator[${query}] += weight;`,
-            ...$1193f60a44983e43$var$range(tokenWidth).map((column)=>`        summary[${query * tokenWidth + column}] += weight * value${column};`)
+            ...$1193f60a44983e43$var$range(tokenWidth).map((column)=>`        summary[${query * tokenWidth + column}] += weight * token[${column}];`)
         ].join("\n")).join("\n")}
     }
 `;
@@ -1250,7 +1273,7 @@ ${$1193f60a44983e43$var$range(queryCount).map((query)=>[
 ${$1193f60a44983e43$var$range(queryCount).map((query)=>`        float inverseDenominator${query} = 1.0 / max(denominator[${query}], 1e-12);`).join("\n")}
 ${$1193f60a44983e43$var$range(headWidth).map((row)=>`        float head${row} = max(${$1193f60a44983e43$var$sumTerms([
             $1193f60a44983e43$var$constantTerm(model.headBias[row]),
-            ...$1193f60a44983e43$var$range(queryWidth).map((index)=>$1193f60a44983e43$var$weightedTerm(model.headWeights[row * queryWidth + index], `summary[${index}] * inverseDenominator${Math.floor(index / tokenWidth)}`))
+            ...$1193f60a44983e43$var$range(queryWidth).map((index)=>$1193f60a44983e43$var$weightedTerm(foldedHeadWeight(row, index), `summary[${index}] * inverseDenominator${Math.floor(index / tokenWidth)}`))
         ])}, 0.0);`).join("\n")}
         return ${$1193f60a44983e43$var$sumTerms([
         $1193f60a44983e43$var$constantTerm(model.outputBias),
@@ -2299,13 +2322,16 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
                 renderer.setRenderTarget(this.writeTargetInternal);
                 this.poissonBlurQuad.render(renderer);
             }
-            renderer.setRenderTarget(this.accumulationRenderTarget);
-            const oldAutoClear = renderer.autoClear;
-            renderer.autoClear = false;
-            this.accumulationQuad.material.uniforms["tDiffuse"].value = this.writeTargetInternal.texture;
-            this.accumulationQuad.material.uniforms["frame"].value = this.frame;
-            this.accumulationQuad.render(renderer);
-            renderer.autoClear = oldAutoClear;
+            // Without accumulation the compositor reads the denoised AO directly, saving a copy.
+            if (this.configuration.accumulate) {
+                renderer.setRenderTarget(this.accumulationRenderTarget);
+                const oldAutoClear = renderer.autoClear;
+                renderer.autoClear = false;
+                this.accumulationQuad.material.uniforms["tDiffuse"].value = this.writeTargetInternal.texture;
+                this.accumulationQuad.material.uniforms["frame"].value = this.frame;
+                this.accumulationQuad.render(renderer);
+                renderer.autoClear = oldAutoClear;
+            }
         }
         // Now, we have the blurred AO in writeTargetInternal
         // End the blur
@@ -2335,7 +2361,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         this.effectCompositerQuad.material.uniforms["radius"].value = trueRadius;
         this.effectCompositerQuad.material.uniforms["distanceFalloff"].value = this.configuration.distanceFalloff;
         this.effectCompositerQuad.material.uniforms["gammaCorrection"].value = this.autosetGamma ? this.renderToScreen : this.configuration.gammaCorrection;
-        this.effectCompositerQuad.material.uniforms["tDiffuse"].value = this.accumulationRenderTarget.texture;
+        this.effectCompositerQuad.material.uniforms["tDiffuse"].value = this.configuration.accumulate ? this.accumulationRenderTarget.texture : this.writeTargetInternal.texture;
         this.effectCompositerQuad.material.uniforms["color"].value = this._c.copy(this.configuration.color).convertSRGBToLinear();
         this.effectCompositerQuad.material.uniforms["colorMultiply"].value = this.configuration.colorMultiply;
         this.effectCompositerQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new $5Whe3$Vector3());
@@ -3083,13 +3109,16 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
                 renderer.setRenderTarget(this.writeTargetInternal);
                 this.poissonBlurQuad.render(renderer);
             }
-            renderer.setRenderTarget(this.accumulationRenderTarget);
-            const oldAutoClear = renderer.autoClear;
-            renderer.autoClear = false;
-            this.accumulationQuad.material.uniforms["tDiffuse"].value = this.writeTargetInternal.texture;
-            this.accumulationQuad.material.uniforms["frame"].value = this.frame;
-            this.accumulationQuad.render(renderer);
-            renderer.autoClear = oldAutoClear;
+            // Without accumulation the compositor reads the denoised AO directly, saving a copy.
+            if (this.configuration.accumulate) {
+                renderer.setRenderTarget(this.accumulationRenderTarget);
+                const oldAutoClear = renderer.autoClear;
+                renderer.autoClear = false;
+                this.accumulationQuad.material.uniforms["tDiffuse"].value = this.writeTargetInternal.texture;
+                this.accumulationQuad.material.uniforms["frame"].value = this.frame;
+                this.accumulationQuad.render(renderer);
+                renderer.autoClear = oldAutoClear;
+            }
         }
         // Now, we have the blurred AO in writeTargetInternal
         // End the blur
@@ -3119,7 +3148,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         this.effectCompositerQuad.material.uniforms["radius"].value = trueRadius;
         this.effectCompositerQuad.material.uniforms["distanceFalloff"].value = this.configuration.distanceFalloff;
         this.effectCompositerQuad.material.uniforms["gammaCorrection"].value = this.configuration.gammaCorrection;
-        this.effectCompositerQuad.material.uniforms["tDiffuse"].value = this.accumulationRenderTarget.texture;
+        this.effectCompositerQuad.material.uniforms["tDiffuse"].value = this.configuration.accumulate ? this.accumulationRenderTarget.texture : this.writeTargetInternal.texture;
         this.effectCompositerQuad.material.uniforms["color"].value = this._c.copy(this.configuration.color).convertSRGBToLinear();
         this.effectCompositerQuad.material.uniforms["colorMultiply"].value = this.configuration.colorMultiply;
         this.effectCompositerQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new $5Whe3$Vector3());

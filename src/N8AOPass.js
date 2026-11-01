@@ -784,13 +784,16 @@ class N8AOPass extends Pass {
                     this.poissonBlurQuad.render(renderer);
 
                 }
-                renderer.setRenderTarget(this.accumulationRenderTarget);
-                const oldAutoClear = renderer.autoClear;
-                renderer.autoClear = false;
-                this.accumulationQuad.material.uniforms["tDiffuse"].value = this.writeTargetInternal.texture;
-                this.accumulationQuad.material.uniforms["frame"].value = this.frame;
-                this.accumulationQuad.render(renderer);
-                renderer.autoClear = oldAutoClear;
+                // Without accumulation the compositor reads the denoised AO directly, saving a copy.
+                if (this.configuration.accumulate) {
+                    renderer.setRenderTarget(this.accumulationRenderTarget);
+                    const oldAutoClear = renderer.autoClear;
+                    renderer.autoClear = false;
+                    this.accumulationQuad.material.uniforms["tDiffuse"].value = this.writeTargetInternal.texture;
+                    this.accumulationQuad.material.uniforms["frame"].value = this.frame;
+                    this.accumulationQuad.render(renderer);
+                    renderer.autoClear = oldAutoClear;
+                }
             }
             // Now, we have the blurred AO in writeTargetInternal
             // End the blur
@@ -823,7 +826,9 @@ class N8AOPass extends Pass {
             this.effectCompositerQuad.material.uniforms['radius'].value = trueRadius;
             this.effectCompositerQuad.material.uniforms['distanceFalloff'].value = this.configuration.distanceFalloff;
             this.effectCompositerQuad.material.uniforms["gammaCorrection"].value = this.configuration.gammaCorrection;
-            this.effectCompositerQuad.material.uniforms["tDiffuse"].value = this.accumulationRenderTarget.texture;
+            this.effectCompositerQuad.material.uniforms["tDiffuse"].value = this.configuration.accumulate
+                ? this.accumulationRenderTarget.texture
+                : this.writeTargetInternal.texture;
             this.effectCompositerQuad.material.uniforms["color"].value = this._c.copy(
                 this.configuration.color
             ).convertSRGBToLinear();

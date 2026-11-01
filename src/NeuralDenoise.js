@@ -160,23 +160,41 @@ const generateShader = (model, aoSamples) => {
         model.aoCountFeature ? [Math.log2(aoSamples)] : []
     ), CENTER_FEATURES);
 
+    // The key projection is folded into the queries and the value projection into the head, so
+    // a tap costs one dot product per query instead of two 6x6 projections plus the dot products:
+    //   score_q = s * q_q . (K t) = (s K^T q_q) . t, and summing V t over taps equals V (sum of t).
+    // neuralMakeQueries therefore returns s K^T q (still width x queries), neuralAttend sums
+    // weighted tokens rather than values, and neuralHead applies V through its folded weights.
+    const scale = 1 / Math.sqrt(tokenWidth);
+    const key = (row, column) => model.keyProjectionWeights[row * tokenWidth + column];
+    const value = (row, column) => model.valueProjectionWeights[row * tokenWidth + column];
+    const foldedQueryWeight = (index, column) => {
+        const query = Math.floor(index / tokenWidth);
+        const input = index % tokenWidth;
+        return scale * range(tokenWidth).reduce((sum, row) => sum + key(row, input)
+            * model.queryProjectionWeights[(query * tokenWidth + row) * tokenWidth + column], 0);
+    };
+    const foldedQueryBias = (index) => {
+        const query = Math.floor(index / tokenWidth);
+        const input = index % tokenWidth;
+        return scale * range(tokenWidth).reduce((sum, row) => sum + key(row, input)
+            * model.summaryQueries[query * tokenWidth + row], 0);
+    };
+    const foldedHeadWeight = (row, index) => {
+        const query = Math.floor(index / tokenWidth);
+        const input = index % tokenWidth;
+        return range(tokenWidth).reduce((sum, output) => sum
+            + model.headWeights[row * queryWidth + query * tokenWidth + output] * value(output, input), 0);
+    };
+
     const queryShader = `
     void neuralMakeQueries(float token[NEURAL_TOKEN_WIDTH], out float queries[NEURAL_QUERY_WIDTH]) {
 ${range(queryWidth).map((index) => `        queries[${index}] = ${sumTerms([
-        constantTerm(model.summaryQueries[index]),
-        ...range(tokenWidth).map((column) => weightedTerm(
-            model.queryProjectionWeights[index * tokenWidth + column],
-            `token[${column}]`
-        ))
+        constantTerm(foldedQueryBias(index)),
+        ...range(tokenWidth).map((column) => weightedTerm(foldedQueryWeight(index, column), `token[${column}]`))
     ])};`).join('\n')}
     }
 `;
-
-    const projection = (weights, prefix) => range(tokenWidth).map((row) => (
-        `        float ${prefix}${row} = ${sumTerms(range(tokenWidth).map((column) => (
-            weightedTerm(weights[row * tokenWidth + column], `token[${column}]`)
-        )))};`
-    )).join('\n');
 
     // Scores stay small, so softmax (shift-invariant) needs no running maximum; the clamp only
     // guards against overflow.
@@ -187,16 +205,14 @@ ${range(queryWidth).map((index) => `        queries[${index}] = ${sumTerms([
         inout float summary[NEURAL_QUERY_WIDTH],
         inout float denominator[NEURAL_QUERY_COUNT]
     ) {
-${projection(model.keyProjectionWeights, 'key')}
-${projection(model.valueProjectionWeights, 'value')}
         float weight;
 ${range(queryCount).map((query) => [
-        `        weight = exp(min(${glslFloat(1 / Math.sqrt(tokenWidth))} * (${range(tokenWidth)
-            .map((column) => `queries[${query * tokenWidth + column}] * key${column}`)
-            .join(' + ')}), 60.0));`,
+        `        weight = exp(min(${range(tokenWidth)
+            .map((column) => `queries[${query * tokenWidth + column}] * token[${column}]`)
+            .join(' + ')}, 60.0));`,
         `        denominator[${query}] += weight;`,
         ...range(tokenWidth).map((column) => (
-            `        summary[${query * tokenWidth + column}] += weight * value${column};`
+            `        summary[${query * tokenWidth + column}] += weight * token[${column}];`
         ))
     ].join('\n')).join('\n')}
     }
@@ -210,7 +226,7 @@ ${range(queryCount).map((query) => (
 ${range(headWidth).map((row) => `        float head${row} = max(${sumTerms([
         constantTerm(model.headBias[row]),
         ...range(queryWidth).map((index) => weightedTerm(
-            model.headWeights[row * queryWidth + index],
+            foldedHeadWeight(row, index),
             `summary[${index}] * inverseDenominator${Math.floor(index / tokenWidth)}`
         ))
     ])}, 0.0);`).join('\n')}

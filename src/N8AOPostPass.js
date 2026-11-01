@@ -15,6 +15,7 @@ import { DepthDownSample } from "./DepthDownSample.js";
 import bluenoiseBits from './BlueNoise.js';
 import { N8AOPass, DepthType } from './N8AOPass.js';
 import { WebGLMultipleRenderTargetsCompat } from './compat.js';
+import { DepthMipAtlas } from './DepthMipAtlas.js';
 
 /**
  * 
@@ -169,6 +170,9 @@ class N8AOPostPass extends Pass {
                 return true;
             }
         });
+        // Far AO samples read coarser depth when float render targets are available.
+        this.depthMipsSupported = true;
+        this.depthMipAtlas = new DepthMipAtlas();
         /** @type {THREE.Vector3[]} */
         this.samples = [];
         /** @type {THREE.Vector2[]} */
@@ -461,6 +465,9 @@ class N8AOPostPass extends Pass {
         if (this.configuration.halfRes) {
             e.fragmentShader = "#define HALFRES\n" + e.fragmentShader;
         }
+        if (this.depthMipsSupported) {
+            e.fragmentShader = "#define DEPTH_MIP\n" + e.fragmentShader;
+        }
         if (this.effectShaderQuad) {
             this.effectShaderQuad.material.dispose();
             this.effectShaderQuad.material = new THREE.ShaderMaterial(e);
@@ -676,6 +683,11 @@ class N8AOPostPass extends Pass {
                 this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
             }
+            const depthMipsSupported = renderer.extensions.has('EXT_color_buffer_float');
+            if (this.depthMipsSupported !== depthMipsSupported) {
+                this.depthMipsSupported = depthMipsSupported;
+                this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+            }
             this.detectTransparency();
             if (inputBuffer.texture.type !== this.outputTargetInternal.texture.type ||
                 inputBuffer.texture.format !== this.outputTargetInternal.texture.format
@@ -733,6 +745,14 @@ class N8AOPostPass extends Pass {
                     this.depthDownsampleQuad.material.uniforms["logDepth"].value = this.configuration.depthBufferType === DepthType.Log;
                     this.depthDownsampleQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
                     this.depthDownsampleQuad.render(renderer);
+                }
+                if (this.depthMipsSupported) {
+                    const aoDepth = this.configuration.halfRes ? this.depthDownsampleTarget.textures[0] : this.depthTexture;
+                    const aoWidth = this.configuration.halfRes ? Math.floor(this._r.x / 2) : this._r.x;
+                    const aoHeight = this.configuration.halfRes ? Math.floor(this._r.y / 2) : this._r.y;
+                    this.depthMipAtlas.update(renderer, aoDepth, aoWidth, aoHeight);
+                    this.effectShaderQuad.material.uniforms["depthMipAtlas"].value = this.depthMipAtlas.target.texture;
+                    this.effectShaderQuad.material.uniforms["depthMipLevels"].value = this.depthMipAtlas.levels;
                 }
                 this.effectShaderQuad.material.uniforms["sceneDiffuse"].value = inputBuffer.texture;
                 this.effectShaderQuad.material.uniforms["sceneDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.textures[0] : this.depthTexture;

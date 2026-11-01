@@ -1,4 +1,4 @@
-import {Color as $5Whe3$Color, WebGLRenderTarget as $5Whe3$WebGLRenderTarget, LinearFilter as $5Whe3$LinearFilter, NearestFilter as $5Whe3$NearestFilter, HalfFloatType as $5Whe3$HalfFloatType, RGBAFormat as $5Whe3$RGBAFormat, DepthTexture as $5Whe3$DepthTexture, UnsignedInt248Type as $5Whe3$UnsignedInt248Type, UnsignedIntType as $5Whe3$UnsignedIntType, DepthStencilFormat as $5Whe3$DepthStencilFormat, DepthFormat as $5Whe3$DepthFormat, Matrix4 as $5Whe3$Matrix4, DataTexture as $5Whe3$DataTexture, ShaderMaterial as $5Whe3$ShaderMaterial, NoColorSpace as $5Whe3$NoColorSpace, RepeatWrapping as $5Whe3$RepeatWrapping, Vector2 as $5Whe3$Vector2, REVISION as $5Whe3$REVISION, RedFormat as $5Whe3$RedFormat, FloatType as $5Whe3$FloatType, GLSL3 as $5Whe3$GLSL3, Vector3 as $5Whe3$Vector3, Sphere as $5Whe3$Sphere, BufferAttribute as $5Whe3$BufferAttribute, BufferGeometry as $5Whe3$BufferGeometry, OrthographicCamera as $5Whe3$OrthographicCamera, Mesh as $5Whe3$Mesh} from "three";
+import {Color as $5Whe3$Color, WebGLRenderTarget as $5Whe3$WebGLRenderTarget, LinearFilter as $5Whe3$LinearFilter, NearestFilter as $5Whe3$NearestFilter, HalfFloatType as $5Whe3$HalfFloatType, RGBAFormat as $5Whe3$RGBAFormat, DepthTexture as $5Whe3$DepthTexture, UnsignedInt248Type as $5Whe3$UnsignedInt248Type, UnsignedIntType as $5Whe3$UnsignedIntType, DepthStencilFormat as $5Whe3$DepthStencilFormat, DepthFormat as $5Whe3$DepthFormat, Matrix4 as $5Whe3$Matrix4, DataTexture as $5Whe3$DataTexture, ShaderMaterial as $5Whe3$ShaderMaterial, NoColorSpace as $5Whe3$NoColorSpace, RepeatWrapping as $5Whe3$RepeatWrapping, Vector2 as $5Whe3$Vector2, REVISION as $5Whe3$REVISION, RedFormat as $5Whe3$RedFormat, FloatType as $5Whe3$FloatType, GLSL3 as $5Whe3$GLSL3, Vector3 as $5Whe3$Vector3, Sphere as $5Whe3$Sphere, BufferAttribute as $5Whe3$BufferAttribute, BufferGeometry as $5Whe3$BufferGeometry, OrthographicCamera as $5Whe3$OrthographicCamera, Mesh as $5Whe3$Mesh, Vector4 as $5Whe3$Vector4} from "three";
 import {Pass as $5Whe3$Pass} from "three/examples/jsm/postprocessing/Pass.js";
 import {Pass as $5Whe3$Pass1} from "postprocessing";
 
@@ -53,6 +53,117 @@ class $e4ca8dcb0218f846$export$dcd670d73db751f5 {
     }
 }
 
+
+
+
+
+// Coarser copies of the AO pass's depth, read by its far samples so that they stay in the
+// texture cache (as in McGuire et al.'s Scalable Ambient Obscurance). Each texel keeps one
+// real depth from the level below, picked on a rotated grid, never an average, so coarse
+// levels invent no surfaces. Levels 1 to DEPTH_MIP_LEVELS are packed in one float texture:
+// level 1 at the top left, the smaller levels side by side below it. Every level is built
+// straight from the full depth in a single pass by following the picks down.
+const $92ca7181966e8293$export$a5758b9e664c79d = 6;
+// Samples closer than 2^(DEPTH_MIP_BIAS + 1) pixels read the full depth; each doubling of the
+// distance after that reads one level coarser.
+const $92ca7181966e8293$export$1a9dc8dbaa976129 = 4;
+const $92ca7181966e8293$var$DepthMipAtlasShader = {
+    uniforms: {
+        sceneDepth: {
+            value: null
+        },
+        // xy: the level's origin in the atlas, zw: its size, for levels 1 to DEPTH_MIP_LEVELS.
+        levels: {
+            value: []
+        },
+        baseSize: {
+            value: /* @__PURE__ */ new $5Whe3$Vector2()
+        }
+    },
+    depthWrite: false,
+    depthTest: false,
+    vertexShader: /* glsl */ `
+    void main() {
+        gl_Position = vec4(position, 1.0);
+    }`,
+    fragmentShader: /* glsl */ `
+    #define DEPTH_MIP_LEVELS ${$92ca7181966e8293$export$a5758b9e664c79d}
+    uniform highp sampler2D sceneDepth;
+    uniform vec4 levels[DEPTH_MIP_LEVELS];
+    uniform vec2 baseSize;
+    void main() {
+        ivec2 atlasTexel = ivec2(gl_FragCoord.xy);
+        float depth = 0.0;
+        for (int level = DEPTH_MIP_LEVELS - 1; level >= 0; level--) {
+            ivec2 texel = atlasTexel - ivec2(levels[level].xy);
+            if (any(lessThan(texel, ivec2(0))) || any(greaterThanEqual(texel, ivec2(levels[level].zw)))) {
+                continue;
+            }
+            // Level k + 1 texel (x, y) keeps level k texel (2x + (y & 1 ^ 1), 2y + (x & 1 ^ 1)).
+            for (int below = level - 1; below >= -1; below--) {
+                ivec2 belowSize = below < 0 ? ivec2(baseSize) : ivec2(levels[max(below, 0)].zw);
+                texel = min(2 * texel + ivec2((texel.y & 1) ^ 1, (texel.x & 1) ^ 1), belowSize - 1);
+            }
+            depth = texelFetch(sceneDepth, texel, 0).x;
+            break;
+        }
+        gl_FragColor = vec4(depth, 0.0, 0.0, 1.0);
+    }`
+};
+class $92ca7181966e8293$export$1758a4e1ca12274d {
+    constructor(){
+        this.levels = Array.from({
+            length: $92ca7181966e8293$export$a5758b9e664c79d
+        }, ()=>new $5Whe3$Vector4());
+        this.baseSize = new $5Whe3$Vector2();
+        this.target = null;
+        this.quad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial($92ca7181966e8293$var$DepthMipAtlasShader));
+    }
+    resize(width, height) {
+        width = Math.max(1, Math.floor(width));
+        height = Math.max(1, Math.floor(height));
+        if (this.target && this.baseSize.x === width && this.baseSize.y === height) return;
+        this.baseSize.set(width, height);
+        let levelWidth = width;
+        let levelHeight = height;
+        let x = 0;
+        for(let level = 0; level < $92ca7181966e8293$export$a5758b9e664c79d; level++){
+            levelWidth = Math.max(1, levelWidth >> 1);
+            levelHeight = Math.max(1, levelHeight >> 1);
+            if (level === 0) this.levels[level].set(0, 0, levelWidth, levelHeight);
+            else {
+                this.levels[level].set(x, this.levels[0].w, levelWidth, levelHeight);
+                x += levelWidth;
+            }
+        }
+        const atlasWidth = Math.max(this.levels[0].z, x);
+        const atlasHeight = this.levels[0].w + ($92ca7181966e8293$export$a5758b9e664c79d > 1 ? this.levels[1].w : 0);
+        this.target?.dispose();
+        this.target = new $5Whe3$WebGLRenderTarget(atlasWidth, atlasHeight, {
+            type: $5Whe3$FloatType,
+            format: $5Whe3$RedFormat,
+            minFilter: $5Whe3$NearestFilter,
+            magFilter: $5Whe3$NearestFilter,
+            depthBuffer: false,
+            generateMipmaps: false
+        });
+    }
+    // Builds the atlas from the AO pass's depth texture of the given size.
+    update(renderer, depthTexture, width, height) {
+        this.resize(width, height);
+        const uniforms = this.quad.material.uniforms;
+        uniforms.sceneDepth.value = depthTexture;
+        uniforms.levels.value = this.levels;
+        uniforms.baseSize.value = this.baseSize;
+        renderer.setRenderTarget(this.target);
+        this.quad.render(renderer);
+    }
+    dispose() {
+        this.target?.dispose();
+        this.target = null;
+        this.quad.dispose();
+    }
+}
 
 
 const $1ed45968c1160c3c$export$c9b263b9a17dffd7 = {
@@ -119,6 +230,12 @@ const $1ed45968c1160c3c$export$c9b263b9a17dffd7 = {
         },
         "frame": {
             value: 0.0
+        },
+        "depthMipAtlas": {
+            value: null
+        },
+        "depthMipLevels": {
+            value: []
         }
     },
     depthWrite: false,
@@ -153,6 +270,10 @@ uniform float frame;
 uniform bool ortho;
 uniform bool screenSpaceRadius;
 uniform sampler2D bluenoise;
+#ifdef DEPTH_MIP
+uniform highp sampler2D depthMipAtlas;
+uniform vec4 depthMipLevels[${(0, $92ca7181966e8293$export$a5758b9e664c79d)}];
+#endif
     varying vec2 vUv;
     highp float linearize_depth(highp float d, highp float zNear,highp float zFar)
     {
@@ -329,7 +450,26 @@ void main() {
         // select, not a branch, so the compiler can issue all depth reads up front.
         bool insideScreen = all(greaterThan(offset.xyz * (1.0 - offset.xyz), vec3(0.0)));
         {
-          float sampleDepth = textureLod(sceneDepth, clamp(offset.xy, 0.0, 1.0), 0.0).x;
+          vec2 sampleUv = clamp(offset.xy, 0.0, 1.0);
+          #ifdef DEPTH_MIP
+          // Far samples read a coarser depth level (see DepthMipAtlas.js) to stay in cache.
+          vec2 screenDelta = (offset.xy - vUv) * resolution;
+          int mipLevel = int(clamp(
+            floor(0.5 * log2(max(dot(screenDelta, screenDelta), 1.0))) - ${(0, $92ca7181966e8293$export$1a9dc8dbaa976129)}.0,
+            0.0,
+            ${(0, $92ca7181966e8293$export$a5758b9e664c79d)}.0
+          ));
+          float sampleDepth;
+          if (mipLevel == 0) {
+            sampleDepth = textureLod(sceneDepth, sampleUv, 0.0).x;
+          } else {
+            vec4 level = depthMipLevels[mipLevel - 1];
+            ivec2 texel = min(ivec2(sampleUv * level.zw), ivec2(level.zw) - 1);
+            sampleDepth = texelFetch(depthMipAtlas, ivec2(level.xy) + texel, 0).x;
+          }
+          #else
+          float sampleDepth = textureLod(sceneDepth, sampleUv, 0.0).x;
+          #endif
 
           /*#ifdef LOGDEPTH
           float distSample = linearize_depth_log(sampleDepth, near, far);
@@ -1686,6 +1826,7 @@ const $ff9437d9c7577f11$export$156f6a58f569aa09 = $ff9437d9c7577f11$var$version 
 };
 
 
+
 /**
  * 
  * @param {*} timerQuery 
@@ -1810,6 +1951,9 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
                 return true;
             }
         });
+        // Far AO samples read coarser depth when float render targets are available.
+        this.depthMipsSupported = true;
+        this.depthMipAtlas = new (0, $92ca7181966e8293$export$1758a4e1ca12274d)();
         /** @type {THREE.Vector3[]} */ this.samples = [];
         /** @type {THREE.Vector2[]} */ this.samplesDenoise = [];
         this.autoDetectTransparency = true;
@@ -2066,6 +2210,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         else if (depthBufferType === (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Reverse) e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
         if (ortho) e.fragmentShader = "#define ORTHO\n" + e.fragmentShader;
         if (this.configuration.halfRes) e.fragmentShader = "#define HALFRES\n" + e.fragmentShader;
+        if (this.depthMipsSupported) e.fragmentShader = "#define DEPTH_MIP\n" + e.fragmentShader;
         if (this.effectShaderQuad) {
             this.effectShaderQuad.material.dispose();
             this.effectShaderQuad.material = new $5Whe3$ShaderMaterial(e);
@@ -2215,6 +2360,11 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
             this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
             this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
         }
+        const depthMipsSupported = renderer.extensions.has("EXT_color_buffer_float");
+        if (this.depthMipsSupported !== depthMipsSupported) {
+            this.depthMipsSupported = depthMipsSupported;
+            this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+        }
         this.detectTransparency();
         if (inputBuffer.texture.type !== this.outputTargetInternal.texture.type || inputBuffer.texture.format !== this.outputTargetInternal.texture.format) {
             this.outputTargetInternal.texture.type = inputBuffer.texture.type;
@@ -2264,6 +2414,14 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
                 this.depthDownsampleQuad.material.uniforms["logDepth"].value = this.configuration.depthBufferType === (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Log;
                 this.depthDownsampleQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
                 this.depthDownsampleQuad.render(renderer);
+            }
+            if (this.depthMipsSupported) {
+                const aoDepth = this.configuration.halfRes ? this.depthDownsampleTarget.textures[0] : this.depthTexture;
+                const aoWidth = this.configuration.halfRes ? Math.floor(this._r.x / 2) : this._r.x;
+                const aoHeight = this.configuration.halfRes ? Math.floor(this._r.y / 2) : this._r.y;
+                this.depthMipAtlas.update(renderer, aoDepth, aoWidth, aoHeight);
+                this.effectShaderQuad.material.uniforms["depthMipAtlas"].value = this.depthMipAtlas.target.texture;
+                this.effectShaderQuad.material.uniforms["depthMipLevels"].value = this.depthMipAtlas.levels;
             }
             this.effectShaderQuad.material.uniforms["sceneDiffuse"].value = inputBuffer.texture;
             this.effectShaderQuad.material.uniforms["sceneDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.textures[0] : this.depthTexture;
@@ -2475,6 +2633,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
 
 
 
+
 /**
  * 
  * @param {*} timerQuery 
@@ -2621,6 +2780,9 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
                 return true;
             }
         });
+        // Far AO samples read coarser depth when float render targets are available.
+        this.depthMipsSupported = true;
+        this.depthMipAtlas = new (0, $92ca7181966e8293$export$1758a4e1ca12274d)();
         /** @type {THREE.Vector3[]} */ this.samples = [];
         /** @type {THREE.Vector2[]} */ this.samplesDenoise = [];
         this.autoDetectTransparency = true;
@@ -2861,6 +3023,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         else if (depthBufferType === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse) e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
         if (ortho) e.fragmentShader = "#define ORTHO\n" + e.fragmentShader;
         if (this.configuration.halfRes) e.fragmentShader = "#define HALFRES\n" + e.fragmentShader;
+        if (this.depthMipsSupported) e.fragmentShader = "#define DEPTH_MIP\n" + e.fragmentShader;
         if (this.effectShaderQuad) {
             this.effectShaderQuad.material.dispose();
             this.effectShaderQuad.material = new $5Whe3$ShaderMaterial(e);
@@ -3001,6 +3164,11 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
             this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
         }
+        const depthMipsSupported = renderer.extensions.has("EXT_color_buffer_float");
+        if (this.depthMipsSupported !== depthMipsSupported) {
+            this.depthMipsSupported = depthMipsSupported;
+            this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+        }
         this.detectTransparency();
         this.camera.updateMatrixWorld();
         if (this.lastViewMatrix.equals(this.camera.matrixWorldInverse) && this.lastProjectionMatrix.equals(this.camera.projectionMatrix) && this.configuration.accumulate && !this.needsFrame) this.frame++;
@@ -3051,6 +3219,14 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
                 this.depthDownsampleQuad.material.uniforms["logDepth"].value = this.configuration.depthBufferType === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Log;
                 this.depthDownsampleQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
                 this.depthDownsampleQuad.render(renderer);
+            }
+            if (this.depthMipsSupported) {
+                const aoDepth = this.configuration.halfRes ? this.depthDownsampleTarget.textures[0] : this.beautyRenderTarget.depthTexture;
+                const aoWidth = this.configuration.halfRes ? Math.floor(this._r.x / 2) : this._r.x;
+                const aoHeight = this.configuration.halfRes ? Math.floor(this._r.y / 2) : this._r.y;
+                this.depthMipAtlas.update(renderer, aoDepth, aoWidth, aoHeight);
+                this.effectShaderQuad.material.uniforms["depthMipAtlas"].value = this.depthMipAtlas.target.texture;
+                this.effectShaderQuad.material.uniforms["depthMipLevels"].value = this.depthMipAtlas.levels;
             }
             this.effectShaderQuad.material.uniforms["sceneDiffuse"].value = this.beautyRenderTarget.texture;
             this.effectShaderQuad.material.uniforms["sceneDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.textures[0] : this.beautyRenderTarget.depthTexture;

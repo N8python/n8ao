@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DEPTH_MIP_LEVELS, DEPTH_MIP_BIAS } from './DepthMipAtlas.js';
 const EffectShader = {
 
     uniforms: {
@@ -23,7 +24,9 @@ const EffectShader = {
         'far': { value: 1000.0 },
         'ortho': { value: false },
         'screenSpaceRadius': { value: false },
-        'frame': { value: 0.0 }
+        'frame': { value: 0.0 },
+        'depthMipAtlas': { value: null },
+        'depthMipLevels': { value: [] }
     },
     depthWrite: false,
     depthTest: false,
@@ -58,6 +61,10 @@ uniform float frame;
 uniform bool ortho;
 uniform bool screenSpaceRadius;
 uniform sampler2D bluenoise;
+#ifdef DEPTH_MIP
+uniform highp sampler2D depthMipAtlas;
+uniform vec4 depthMipLevels[${DEPTH_MIP_LEVELS}];
+#endif
     varying vec2 vUv;
     highp float linearize_depth(highp float d, highp float zNear,highp float zFar)
     {
@@ -234,7 +241,26 @@ void main() {
         // select, not a branch, so the compiler can issue all depth reads up front.
         bool insideScreen = all(greaterThan(offset.xyz * (1.0 - offset.xyz), vec3(0.0)));
         {
-          float sampleDepth = textureLod(sceneDepth, clamp(offset.xy, 0.0, 1.0), 0.0).x;
+          vec2 sampleUv = clamp(offset.xy, 0.0, 1.0);
+          #ifdef DEPTH_MIP
+          // Far samples read a coarser depth level (see DepthMipAtlas.js) to stay in cache.
+          vec2 screenDelta = (offset.xy - vUv) * resolution;
+          int mipLevel = int(clamp(
+            floor(0.5 * log2(max(dot(screenDelta, screenDelta), 1.0))) - ${DEPTH_MIP_BIAS}.0,
+            0.0,
+            ${DEPTH_MIP_LEVELS}.0
+          ));
+          float sampleDepth;
+          if (mipLevel == 0) {
+            sampleDepth = textureLod(sceneDepth, sampleUv, 0.0).x;
+          } else {
+            vec4 level = depthMipLevels[mipLevel - 1];
+            ivec2 texel = min(ivec2(sampleUv * level.zw), ivec2(level.zw) - 1);
+            sampleDepth = texelFetch(depthMipAtlas, ivec2(level.xy) + texel, 0).x;
+          }
+          #else
+          float sampleDepth = textureLod(sceneDepth, sampleUv, 0.0).x;
+          #endif
 
           /*#ifdef LOGDEPTH
           float distSample = linearize_depth_log(sampleDepth, near, far);

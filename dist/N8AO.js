@@ -1500,9 +1500,6 @@ const $ff9437d9c7577f11$export$156f6a58f569aa09 = $ff9437d9c7577f11$var$version 
         });
         this.isWebGLMultipleRenderTargets = true;
     }
-    get texture() {
-        return this.textures;
-    }
 } : class extends $5Whe3$WebGLRenderTarget {
     constructor(width = 1, height = 1, count = 1, options = {}){
         super(width, height, options);

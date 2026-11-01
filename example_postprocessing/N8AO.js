@@ -575,7 +575,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
             value: 0.0
         },
         "intensity": {
-            value: 10.0
+            value: 5.0
         },
         "renderMode": {
             value: 0.0

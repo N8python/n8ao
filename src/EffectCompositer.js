@@ -19,7 +19,7 @@ const EffectCompositer = {
         'blueNoise': { value: null },
         'downsampledDepth': { value: null },
         'time': { value: 0.0 },
-        'intensity': { value: 10.0 },
+        'intensity': { value: 5.0 },
         'renderMode': { value: 0.0 },
         "gammaCorrection": { value: false },
         "ortho": { value: false },

@@ -8,6 +8,7 @@ const DepthDownSample = {
         'far': { value: 1000.0 },
         'viewMatrixInv': { value: /* @__PURE__ */ new THREE.Matrix4() },
         'projectionMatrixInv': { value: /* @__PURE__ */ new THREE.Matrix4() },
+        'projMat': { value: /* @__PURE__ */ new THREE.Matrix4() },
         'logDepth': { value: false },
         'ortho': { value: false }
     },
@@ -29,6 +30,7 @@ const DepthDownSample = {
     uniform bool ortho;
     uniform mat4 viewMatrixInv;
     uniform mat4 projectionMatrixInv;
+    uniform mat4 projMat;
     varying vec2 vUv;
     layout(location = 1) out vec4 gNormal;
     vec3 getWorldPosLog(vec3 posS) {
@@ -97,6 +99,48 @@ const DepthDownSample = {
   
       return normalize(cross(dpdx, dpdy));
   }
+    bool isBackgroundDepth(float depth) {
+      #ifdef REVERSEDEPTH
+        return depth == 0.0;
+      #else
+        return depth == 1.0;
+      #endif
+    }
+    // Later passes rebuild each half-res pixel's position at the pixel's center, but the chosen
+    // depth belongs to one of its four full-res samples. On sloped surfaces that puts the position
+    // in front of or behind the surface, so the depth is moved along the sample's tangent plane to
+    // the center.
+    float depthAtCenter(float depth, vec3 position, vec3 normal) {
+        if (isBackgroundDepth(depth)) {
+            return depth;
+        }
+        // The center's view ray, through the point at the same depth.
+        vec3 center = getWorldPos(depth, vUv);
+        vec3 origin = ortho ? center : vec3(0.0);
+        vec3 direction = ortho ? vec3(0.0, 0.0, -1.0) : center;
+        float facing = dot(direction, normal);
+        if (abs(facing) < 1e-6 * length(direction)) {
+            return depth;
+        }
+        vec3 onPlane = origin + direction * (dot(position - origin, normal) / facing);
+        // Near grazing angles the plane runs almost along the ray; keep the sample there.
+        if (distance(onPlane, center) > 4.0 * distance(position, center)) {
+            return depth;
+        }
+        float centerDepth;
+        if (logDepth && !ortho) {
+            centerDepth = log2(1.0 - onPlane.z) / log2(far + 1.0);
+        } else {
+            vec4 clip = projMat * vec4(onPlane, 1.0);
+            #ifdef REVERSEDEPTH
+            centerDepth = clip.z / clip.w;
+            #else
+            centerDepth = clip.z / clip.w * 0.5 + 0.5;
+            #endif
+        }
+        // Never move a surface onto or past the near and far planes.
+        return centerDepth > 0.0 && centerDepth < 1.0 ? centerDepth : depth;
+    }
     void main() {
         vec2 uv = vUv - vec2(0.5) / resolution;
         vec2 pixelSize = vec2(1.0) / resolution;
@@ -128,10 +172,10 @@ const DepthDownSample = {
                 break;
             }
         }
-        gl_FragColor = vec4(samples[chosenIndex], 0.0, 0.0, 1.0);
-        gNormal = vec4(computeNormal(
-            getWorldPos(samples[chosenIndex], uvSamples[chosenIndex]), uvSamples[chosenIndex]
-        ), 0.0);
+        vec3 chosenPos = getWorldPos(samples[chosenIndex], uvSamples[chosenIndex]);
+        vec3 chosenNormal = computeNormal(chosenPos, uvSamples[chosenIndex]);
+        gl_FragColor = vec4(depthAtCenter(samples[chosenIndex], chosenPos, chosenNormal), 0.0, 0.0, 1.0);
+        gNormal = vec4(chosenNormal, 0.0);
     }`
 };
 

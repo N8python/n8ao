@@ -704,6 +704,7 @@ class N8AOPass extends Pass {
                     this.depthDownsampleQuad.material.uniforms["near"].value = this.camera.near;
                     this.depthDownsampleQuad.material.uniforms["far"].value = this.camera.far;
                     this.depthDownsampleQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
+                    this.depthDownsampleQuad.material.uniforms["projMat"].value = this.camera.projectionMatrix;
                     this.depthDownsampleQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
                     this.depthDownsampleQuad.material.uniforms["logDepth"].value = this.configuration.depthBufferType === DepthType.Log;
                     this.depthDownsampleQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;

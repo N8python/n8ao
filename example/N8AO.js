@@ -2190,6 +2190,15 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         this._r = new $5Whe3$Vector2();
         this._c = new $5Whe3$Color();
     }
+    // The half-res depth downsample, which needs to know whether depth is reversed.
+    configureDepthDownsample() {
+        const e = {
+            ...(0, $26aca173e0984d99$export$1efdf491687cd442)
+        };
+        if (this.configuration.depthBufferType === (0, $05f6997e4b65da14$export$ed4ee5d1e55474a5).Reverse) e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
+        this.depthDownsampleQuad?.dispose();
+        this.depthDownsampleQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(e));
+    }
     configureHalfResTargets() {
         this.firstFrame();
         if (this.configuration.halfRes) {
@@ -2205,7 +2214,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
             this.depthDownsampleTarget.textures[1].minFilter = $5Whe3$NearestFilter;
             this.depthDownsampleTarget.textures[1].magFilter = $5Whe3$NearestFilter;
             this.depthDownsampleTarget.textures[1].depthBuffer = false;
-            this.depthDownsampleQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial((0, $26aca173e0984d99$export$1efdf491687cd442)));
+            this.configureDepthDownsample();
         } else {
             if (this.depthDownsampleTarget) {
                 this.depthDownsampleTarget.dispose();
@@ -2479,6 +2488,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
             this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
             this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
             this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+            if (this.configuration.halfRes) this.configureDepthDownsample();
         }
         const depthMipsSupported = renderer.extensions.has("EXT_color_buffer_float");
         if (this.depthMipsSupported !== depthMipsSupported) {
@@ -2991,6 +3001,15 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         this._r = new $5Whe3$Vector2();
         this._c = new $5Whe3$Color();
     }
+    // The half-res depth downsample, which needs to know whether depth is reversed.
+    configureDepthDownsample() {
+        const e = {
+            ...(0, $26aca173e0984d99$export$1efdf491687cd442)
+        };
+        if (this.configuration.depthBufferType === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse) e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
+        this.depthDownsampleQuad?.dispose();
+        this.depthDownsampleQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(e));
+    }
     configureHalfResTargets() {
         this.firstFrame();
         if (this.configuration.halfRes) {
@@ -3006,11 +3025,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             this.depthDownsampleTarget.textures[1].minFilter = $5Whe3$NearestFilter;
             this.depthDownsampleTarget.textures[1].magFilter = $5Whe3$NearestFilter;
             this.depthDownsampleTarget.textures[1].depthBuffer = false;
-            const e = {
-                ...(0, $26aca173e0984d99$export$1efdf491687cd442)
-            };
-            if (this.configuration.depthBufferType === $05f6997e4b65da14$export$ed4ee5d1e55474a5.Reverse) e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
-            this.depthDownsampleQuad = new (0, $e4ca8dcb0218f846$export$dcd670d73db751f5)(new $5Whe3$ShaderMaterial(e));
+            this.configureDepthDownsample();
         } else {
             if (this.depthDownsampleTarget) {
                 this.depthDownsampleTarget.dispose();
@@ -3276,6 +3291,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
             this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
             this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
             this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+            if (this.configuration.halfRes) this.configureDepthDownsample();
         }
         const depthMipsSupported = renderer.extensions.has("EXT_color_buffer_float");
         if (this.depthMipsSupported !== depthMipsSupported) {

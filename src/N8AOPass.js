@@ -286,6 +286,15 @@ class N8AOPass extends Pass {
         this._c = new THREE.Color();
 
     }
+    // The half-res depth downsample, which needs to know whether depth is reversed.
+    configureDepthDownsample() {
+        const e = {...DepthDownSample };
+        if (this.configuration.depthBufferType === DepthType.Reverse) {
+            e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
+        }
+        this.depthDownsampleQuad?.dispose();
+        this.depthDownsampleQuad = new FullScreenTriangle(new THREE.ShaderMaterial(e));
+    }
     configureHalfResTargets() {
         this.firstFrame();
         if (this.configuration.halfRes) {
@@ -309,12 +318,7 @@ class N8AOPass extends Pass {
             this.depthDownsampleTarget.textures[1].magFilter = THREE.NearestFilter;
             this.depthDownsampleTarget.textures[1].depthBuffer = false;
 
-            const e = {...DepthDownSample };
-            if (this.configuration.depthBufferType === DepthType.Reverse) {
-                e.fragmentShader = "#define REVERSEDEPTH\n" + e.fragmentShader;
-            }
-
-            this.depthDownsampleQuad = new FullScreenTriangle(new THREE.ShaderMaterial(e));
+            this.configureDepthDownsample();
         } else {
             if (this.depthDownsampleTarget) {
                 this.depthDownsampleTarget.dispose();
@@ -645,6 +649,9 @@ class N8AOPass extends Pass {
                 this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
+                if (this.configuration.halfRes) {
+                    this.configureDepthDownsample();
+                }
             }
             const depthMipsSupported = renderer.extensions.has('EXT_color_buffer_float');
             if (this.depthMipsSupported !== depthMipsSupported) {

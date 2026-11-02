@@ -107,7 +107,6 @@ async function main() {
         distanceFalloff: 1.0,
         screenSpaceRadius: false,
         halfRes: false,
-        depthAwareUpsampling: true,
         transparencyAware: true,
         intensity: 5.0,
         renderMode: "Combined",
@@ -116,28 +115,26 @@ async function main() {
         stencil: true,
         accumulate: false,
         neuralDenoise: false,
-        neuralUpsample: true,
     };
     const gui = new GUI();
-    gui.add(effectController, "aoSamples", 1.0, 64.0, 1.0);
+    const aoSamplesController = gui.add(effectController, "aoSamples", 1.0, 64.0, 1.0);
     const aor = gui.add(effectController, "aoRadius", 1.0, 10.0, 0.01);
     gui.add(effectController, "aoTones", 0.0, 8.0, 1.0);
-    gui.add(effectController, "denoiseSamples", 1.0, 64.0, 1.0);
-    gui.add(effectController, "denoiseRadius", 0.0, 24.0, 0.01);
-    gui.add(effectController, "denoiseIterations", 1.0, 10.0, 1.0);
+    const denoiseSamplesController = gui.add(effectController, "denoiseSamples", 1.0, 64.0, 1.0);
+    const denoiseRadiusController = gui.add(effectController, "denoiseRadius", 0.0, 24.0, 0.01);
+    const denoiseIterationsController = gui.add(effectController, "denoiseIterations", 1.0, 10.0, 1.0);
     gui.add(effectController, "neuralDenoise").onChange((enabled) => {
-        if (enabled) {
-            // Neural denoising supports 4-64 AO samples and 2-16 denoise samples.
-            if (effectController.aoSamples < 4 || effectController.aoSamples > 64) {
-                effectController.aoSamples = 16;
-            }
-            if (effectController.denoiseSamples < 2 || effectController.denoiseSamples > 16) {
-                effectController.denoiseSamples = 8;
-            }
-            effectController.denoiseRadius = 12;
-            effectController.denoiseIterations = 2;
-            gui.controllersRecursive().forEach((controller) => controller.updateDisplay());
+        // While neural denoising is on the pass holds the sample counts to the ranges its models
+        // support and fixes the denoise radius and iterations; turning it off restores them.
+        n8aopass.configuration.neuralDenoise = enabled;
+        for (const name of ["aoSamples", "denoiseSamples", "denoiseRadius", "denoiseIterations"]) {
+            effectController[name] = n8aopass.configuration[name];
         }
+        aoSamplesController.min(enabled ? 4 : 1);
+        denoiseSamplesController.min(enabled ? 2 : 1).max(enabled ? 16 : 64);
+        denoiseRadiusController.disable(enabled);
+        denoiseIterationsController.disable(enabled);
+        gui.controllersRecursive().forEach((controller) => controller.updateDisplay());
     });
     const df = gui.add(effectController, "distanceFalloff", 0.0, 10.0, 0.01);
     gui.add(effectController, "screenSpaceRadius").onChange((value) => {
@@ -160,10 +157,7 @@ async function main() {
         df.updateDisplay();
     });
     gui.add(effectController, "halfRes");
-    // Learned upsampling for half resolution with neural denoising.
-    gui.add(effectController, "neuralUpsample");
     gui.add(effectController, "transparencyAware");
-    gui.add(effectController, "depthAwareUpsampling");
     gui.add(effectController, "stencil");
     gui.add(effectController, "intensity", 0.0, 10.0, 0.01);
     gui.addColor(effectController, "color");
@@ -241,8 +235,6 @@ async function main() {
         n8aopass.configuration.color = new THREE.Color(effectController.color[0], effectController.color[1], effectController.color[2]);
         n8aopass.configuration.screenSpaceRadius = effectController.screenSpaceRadius;
         n8aopass.configuration.halfRes = effectController.halfRes;
-        n8aopass.configuration.neuralUpsample = effectController.neuralUpsample;
-        n8aopass.configuration.depthAwareUpsampling = effectController.depthAwareUpsampling;
         n8aopass.configuration.colorMultiply = effectController.colorMultiply;
         n8aopass.configuration.accumulate = effectController.accumulate;
         composer.render();

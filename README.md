@@ -87,9 +87,22 @@ N8AOPostPass's API is identical to that of N8AOPass (so all docs below apply), e
 Small note: N8AOPostPass's `configuration.gammaCorrection` is automatically set to the correct value based on its position in your postprocessing pipeline. If it is the last pass, it is set to true. Otherwise, it is set to false. This is to ensure that gamma correction is only applied once. However, sometimes this automatic detection fails, so if you are getting washed out colors, try setting `configuration.gammaCorrection` to false, and if you are getting dark colors, try setting it to true.
 
 
-# Usage (Detailed)
+# Configuration Overview
 
-`N8AOPass` is designed to be as easy to use as possible. It works with logarithmic depth buffers and orthographic cameras, supports materials with custom vertex displacement and alpha clipping, and automatically detects the presence of these things so you do not need to deal with user-side configuration.
+Everything is set through `n8aopass.configuration`. The settings fall into four groups:
+
+| Group | Settings | What they control |
+|:---|:---|:---|
+| [Appearance](#appearance) | `aoRadius`, `distanceFalloff`, `intensity`, `color`, `screenSpaceRadius`, `colorMultiply`, `aoTones` | What the AO looks like |
+| [Quality and performance](#quality-and-performance) | `aoSamples`, `denoiseSamples`, `denoiseRadius`, `denoiseIterations`, `neuralDenoise`, `halfRes` (or a preset via `setQualityMode`) | How closely, and at what cost, each frame approximates that look |
+| [Accumulation](#accumulation) | `accumulate` | Refining the AO over several frames while the camera holds still |
+| [Integration and debugging](#integration-and-debugging) | `gammaCorrection`, `autoRenderBeauty`, `transparencyAware`, `stencil`, `depthBufferType`, `biasOffset`, `biasMultiplier`, `renderMode` | Fitting N8AO into your pipeline and fixing artifacts |
+
+`n8aopass.effectiveConfiguration` reports what the pass actually runs with: the denoiser and neural model in use, the denoise radius in screen pixels, and how half-resolution AO is upsampled.
+
+# Appearance
+
+N8AOPass is designed to be as easy to use as possible. It works with logarithmic depth buffers and orthographic cameras, supports materials with custom vertex displacement and alpha clipping, and automatically detects the presence of these things so you do not need to deal with user-side configuration.
 
 However, some tweaking is often necessary to make sure your AO effect looks proper and does not suffer from artifacts. There are four principal parameters that control the visual "look" of the AO effect: `aoRadius`, `distanceFalloff`, `intensity`, and `color`. They can be changed in the following manner:
 
@@ -118,6 +131,67 @@ They are covered below:
 ### Migration Notice
 The API changed slightly with N8AO 1.7 - the only change you should have to make is adjusting your `distanceFalloff` parameter - choosing 1.0 is a safe value. For the exact same results you had before, you can do `distanceFalloff = 5.0 * oldDistanceFalloff / radius`.
 
+`intensity: number` - A purely artistic control for the intensity of the AO - runs the ao through the function `pow(ao, intensity)`, which has the effect of darkening areas with more ambient occlusion. Useful to make the effect more pronounced. An intensity of 2 generally produces soft ambient occlusion that isn't too noticeable, whereas one of 5 (the default) produces heavily prominent ambient occlusion. 
+
+`color: THREE.Color` - The color of the ambient occlusion. By default, it is black, but it can be changed to any color to offer a crude approximation of global illumination. Recommended in scenes where bounced light has a uniform "color", for instance a scene that is predominantly lit by a blue sky. The color is expected to be in the sRGB color space, and is automatically converted to linear space for you. Keep the color pretty dark for sensible results.
+
+| <img src="example/tutorial/color1.jpeg" alt="Image 1"/> | <img src="example/tutorial/color2.jpeg" alt="Image 2"/> | <img src="example/tutorial/color3.jpeg" alt="Image 3"/> |
+|:---:|:---:|:---:|
+| Color Black (Normal AO) | Color Blue (Appropriate) | Color Red (Too Bright) |
+
+## Screen Space Radius
+
+If you want the AO to calculate the radius based on screen space, you can do so by setting `configuration.screenSpaceRadius` to `true`. This is useful for scenes where the camera is moving across different scales a lot, or for scenes where the camera is very close to the objects.
+
+When `screenSpaceRadius` is set to `true`, the `aoRadius` parameter represents the size of the ambient occlusion effect in pixels (recommended to be set between 16 and 64). The `distanceFalloff` parameter becomes a ratio, representing the percent of the screen space radius at which the AO should fade away - it should be set to 0.2 in most cases, but it accepts any value between 0 and 1 (technically even higher than 1, though that is not recommended).
+
+## AO Tones
+
+The property `configuration.aoTones` controls the number of tones the AO effect can have. Can be used for toon shading or bevel effects - default is `0`, which means the AO effect is continuous. Any value above `0` will cause the AO effect to be quantized into that many tones.
+
+# Quality and Performance
+
+These settings decide how much work N8AO does per frame and how cleanly its result approximates the look set above. They do not change what the AO is meant to look like.
+
+## Quality Modes
+
+The simplest way to choose them is a quality mode (the default is `Medium`):
+
+```js
+n8aopass.setQualityMode("Low"); // Or any other quality mode
+```
+
+Each mode sets the AO samples, denoise samples, denoise radius, denoise iterations and whether neural denoising is on, and leaves every other setting alone, including `halfRes`. The quality modes are as follows:
+
+*Temporal stability refers to how consistent the AO is from frame to frame - it's important for a smooth experience.*
+| Quality Mode | AO Samples | Denoise Samples | Denoise Radius | Neural Denoise | Best For
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| Performance (Less temporal stability, a bit noisy) | 8 | 4 | 12 | No | Mobile, Low-end iGPUs and laptops |
+| Low (Temporally stable, but low-frequency noise) | 16 | 4 | 12 | No | High-End Mobile, iGPUs, laptops |
+| Medium (Temporally stable and barely any noise) | 16 | 8 | 12 | No | High-End Mobile, laptops, desktops |
+| High (Significantly sharper AO, barely any noise) | 64 | 8 | 6 | No | Desktops, dedicated GPUs  |
+| Ultra (Sharp AO, No visible noise whatsoever) | 64 | 16 | 6 | No | Desktops, dedicated GPUs|
+| Neural-Performance (Clean, stable AO at the lowest neural cost) | 8 | 4 | 12 | Yes | High-End Mobile, iGPUs, laptops |
+| Neural-Low (Cleaner AO with more AO samples) | 16 | 4 | 12 | Yes | Laptops and desktops |
+| Neural-Medium (Clean, stable AO with additional smoothing) | 16 | 8 | 12 | Yes | Laptops and desktops |
+| Neural-High (Cleanest neural output) | 16 | 16 | 12 | Yes | Desktops and dedicated GPUs |
+
+All modes use two denoise iterations.
+
+## Half Resolution
+
+`N8AOPass` has a "half-resolution" mode for performance-critical applications. Enabling it is as simple as doing:
+
+```js
+n8aopass.configuration.halfRes = true;
+```
+
+This will cause the AO to be calculated at half the resolution of the screen, and then upscaled to the full resolution. This is a great way to get a performance boost (generally 2x-4x) at the cost of some quality (the AO will lack fine details and temporal stability will be slightly reduced). Every quality mode, neural ones included, works with or without it. Generally, half-res mode at "Ultra" quality is slightly slower than full-res mode at "Performance" quality, but produces significantly better results.
+
+The upscaling is depth-aware, so AO does not bleed across object edges. It costs about 0.1ms at 1080p on an Apple M5 Max. (`configuration.depthAwareUpsampling` used to turn it off; it is now always on, and setting it to `false` does nothing.)
+
+## Neural Denoising
+
 `neuralDenoise: boolean` - Enables an optional learned denoising step that enhances temporal stability, sharpens contact shadows, and simulates the precision of vastly more AO samples. It is especially useful with lower denoise sample counts, allowing 4 or 8 samples to produce much cleaner and more stable AO while retaining small geometric details. Neural denoising is disabled by default because it adds some GPU cost.
 
 The easiest way to enable it is with one of the neural quality modes:
@@ -126,35 +200,59 @@ The easiest way to enable it is with one of the neural quality modes:
 n8aopass.setQualityMode("Neural-Medium"); // "Neural-Performance", "Neural-Low", "Neural-Medium", or "Neural-High"
 ```
 
-Neural-Performance uses 8 AO samples with 4 denoise samples and runs a model specialized for low sample counts; Neural-Low, Neural-Medium, and Neural-High use 16 AO samples with 4, 8, and 16 denoise samples respectively. All four automatically enable neural denoising and use its required configuration (a denoise radius of 12 and two denoise passes) at full resolution. `aoRadius` and `distanceFalloff` continue to work normally.
+You can also turn it on directly with `configuration.neuralDenoise = true`. A model specialized for 4 to 8 AO samples with 2 to 8 denoise samples is picked automatically in that range, which makes cheaper setups such as 8 AO samples with 4 denoise samples noticeably cleaner. `aoRadius`, `distanceFalloff` and the other appearance settings continue to work normally.
 
-You can also configure neural denoising manually with `configuration.neuralDenoise`. It supports:
-
-- `aoSamples` from 4 to 64
-- `denoiseSamples` from 2 to 16
-- `denoiseRadius` of 12 and `denoiseIterations` of 2
-
-Setting `neuralDenoise = true` applies the last line for you and keeps your sample counts if they are in range (otherwise `aoSamples` becomes 16 and `denoiseSamples` becomes 8). A model specialized for 4 to 8 AO samples with 2 to 8 denoise samples is picked automatically in that range, which makes cheaper setups such as 8 AO samples with 4 denoise samples noticeably cleaner. If a parameter is later changed to an unsupported value while neural denoising is enabled, N8AO falls back to standard denoising rather than throwing an error and prints a warning to the console.
+> **Neural denoising rules**
+>
+> The models only cover some settings, so while `neuralDenoise` is on:
+>
+> | Setting | Allowed |
+> |:---|:---|
+> | `aoSamples` | 4 to 64 |
+> | `denoiseSamples` | 2 to 16 |
+> | `denoiseRadius` | 12 only |
+> | `denoiseIterations` | 2 only |
+>
+> - Turning it on moves any setting outside these limits inside them (to 16 AO samples, 8 denoise samples, radius 12 and 2 iterations).
+> - Writing a value outside the limits while it is on is refused: the setting keeps its value and an error is logged to the console.
+> - Turning it off restores the values it replaced, unless you changed them in the meantime.
 
 | <img src="example/tutorial/neuraldenoiseoff.jpeg" alt="Neural denoising disabled"/> | <img src="example/tutorial/neuraldenoise4.jpeg" alt="Neural denoising with 4 samples"/> | <img src="example/tutorial/neuraldenoise8.jpeg" alt="Neural denoising with 8 samples"/> | <img src="example/tutorial/neuraldenoise16.jpeg" alt="Neural denoising with 16 samples"/> |
 |:---:|:---:|:---:|:---:|
 | Neural Denoise Off (16 samples) | Neural Denoise On (4 samples) | Neural Denoise On (8 samples) | Neural Denoise On (16 samples) |
 
-`intensity: number` - A purely artistic control for the intensity of the AO - runs the ao through the function `pow(ao, intensity)`, which has the effect of darkening areas with more ambient occlusion. Useful to make the effect more pronounced. An intensity of 2 generally produces soft ambient occlusion that isn't too noticeable, whereas one of 5 produces heavily prominent ambient occlusion. 
+Half resolution with neural denoising is the cheapest way to get clean AO. N8AO then uses denoisers trained at half resolution, and the denoise radius counts half-resolution pixels instead of being halved (12 covers 24 screen pixels), which keeps the AO about a quarter to a third steadier in motion than plain half-resolution denoising with the full-resolution models, at some cost in sharpness. It also replaces the depth-aware upscaling with a small learned upsampler, which recovers much of the detail half resolution loses for about 0.1ms more (at 1080p on an Apple M5 Max).
 
-`color: THREE.Color` - The color of the ambient occlusion. By default, it is black, but it can be changed to any color to offer a crude approximation of global illumination. Recommended in scenes where bounced light has a uniform "color", for instance a scene that is predominantly lit by a blue sky. The color is expected to be in the sRGB color space, and is automatically converted to linear space for you. Keep the color pretty dark for sensible results.
+## Custom Quality
 
-| <img src="example/tutorial/color1.jpeg" alt="Image 1"/> | <img src="example/tutorial/color2.jpeg" alt="Image 2"/> | <img src="example/tutorial/color3.jpeg" alt="Image 3"/> |
-|:---:|:---:|:---:|
-| Color Black (Normal AO) | Color Blue (Appropriate) | Color Red (Too Bright) |
+If you wish to make entirely custom quality setup, you can manually change `aoSamples`, `denoiseSamples`, `denoiseRadius` and `denoiseIterations` in the `configuration` object.
 
-# Screen Space Radius
+```js 
+n8aopass.configuration.aoSamples = 16;
+n8aopass.configuration.denoiseSamples = 8;
+n8aopass.configuration.denoiseRadius = 12;
+n8aopass.configuration.denoiseIterations = 2;
+```
 
-If you want the AO to calculate the radius based on screen space, you can do so by setting `configuration.screenSpaceRadius` to `true`. This is useful for scenes where the camera is moving across different scales a lot, or for scenes where the camera is very close to the objects.
+`denoiseRadius` is in screen pixels, at full and half resolution alike. Setting `denoiseIterations` to 0 turns denoising off.
 
-When `screenSpaceRadius` is set to `true`, the `aoRadius` parameter represents the size of the ambient occlusion effect in pixels (recommended to be set between 16 and 64). The `distanceFalloff` parameter becomes a ratio, representing the percent of the screen space radius at which the AO should fade away - it should be set to 0.2 in most cases, but it accepts any value between 0 and 1 (technically even higher than 1, though that is not recommended).
+Either way, changing the quality or any of the above variables is expensive as it forces a recompile of all the shaders used in the AO effect. It is recommended to do this only once, at the start of your application. Merely setting the values each frame to some constant does not trigger recompile, however.
 
-# Using your own render target
+# Accumulation
+
+When the camera is still, you can enable the accumulation of samples across frames, which will reduce noise and improve the quality of the AO effect. This is done by setting `configuration.accumulate` to `true`:
+
+```js
+n8aopass.configuration.accumulate = true;
+```
+
+Accumulation averages whole denoised frames, so it removes noise but keeps any blur the denoiser adds. For the sharpest still images, turn denoising down: `denoiseIterations = 0` turns it off entirely, which leaves the result purely temporal. Neural denoising has to be off for that.
+
+The accumulation effect works best in scenes with no motion - as it does not calculate motion vectors and will only work with the camera still. If the camera is moving, the accumulation effect will be disabled automatically. But if an object is moving, N8AO won't be able to pick up on that and the object's ambient occlusion will become blurred. Once enough frames are accumulated (1024 AO samples per pixel in total), N8AO stops computing new AO until the camera moves again.
+
+# Integration and Debugging
+
+## Using your own render target
 
 If you're utilizing the standard `N8AOPass`, there might be a situation where you have a pre-existing render target with a depth buffer that you'd prefer `N8AOPass` to use, instead of it generating a new one. To accomplish this, you can assign your render target to `n8aopass.beautyRenderTarget`.
 
@@ -174,87 +272,12 @@ renderTarget.depthTexture = new THREE.DepthTexture(width, height, THREE.Unsigned
 renderTarget.depthTexture.format = THREE.DepthStencilFormat;
 ```
 
-
-# Performance
-`N8AOPass` has a "half-resolution" mode for performance-critical applications. Enabling it is as simple as doing:
-
-```js
-n8aopass.configuration.halfRes = true;
-```
-
-This will cause the AO to be calculated at half the resolution of the screen, and then upscaled to the full resolution. This is a great way to get a performance boost (generally 2x-4x) at the cost of some quality (the AO will lack fine details and temporal stability will be slightly reduced).
-
-The half-resolution mode uses depth-aware upscaling by default, and this generally incurs a fixed cost of around 1ms. The AO effect looks horrible without depth-aware upscaling, so it is not recommended to disable it. However, if performance is truly that critical, you can do so by setting `configuration.depthAwareUpsampling` to `false`.
-
-On top of half-resolution mode, `N8AOPass` comes with a wide variety of quality presets, and you can even manually edit the settings to your liking. Every mode, neural ones included, can be used with or without half-resolution mode; the neural modes set full resolution, so enable `halfRes` after choosing one. Half resolution with neural denoising is the cheapest way to get clean AO. N8AO then uses denoisers trained at half resolution, and the denoise radius counts half-resolution pixels instead of being halved (12 covers 24 screen pixels), which keeps the AO about a quarter to a third steadier in motion than plain half-resolution denoising with the full-resolution models, at some cost in sharpness. It also replaces its depth-aware upscaling with a small learned upsampler, which recovers much of the detail half resolution loses for about 0.1ms more (at 1080p on an Apple M5 Max). For the very cheapest setups (2 to 4 denoise samples with 4 to 8 AO samples), setting `configuration.neuralUpsample = false` keeps the fixed upscaling and saves that 0.1ms. You can switch between quality modes (the default is `Medium`) by doing:
-
-```js
-n8aopass.setQualityMode("Low"); // Or any other quality mode
-```
-
-The quality modes are as follows:
-
-*Temporal stability refers to how consistent the AO is from frame to frame - it's important for a smooth experience.*
-| Quality Mode | AO Samples | Denoise Samples | Denoise Radius | Neural Denoise | Best For
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| Performance (Less temporal stability, a bit noisy) | 8 | 4 | 12 | No | Mobile, Low-end iGPUs and laptops |
-| Low (Temporally stable, but low-frequency noise) | 16 | 4 | 12 | No | High-End Mobile, iGPUs, laptops |
-| Medium (Temporally stable and barely any noise) | 16 | 8 | 12 | No | High-End Mobile, laptops, desktops |
-| High (Significantly sharper AO, barely any noise) | 64 | 8 | 6 | No | Desktops, dedicated GPUs  |
-| Ultra (Sharp AO, No visible noise whatsoever) | 64 | 16 | 6 | No | Desktops, dedicated GPUs|
-| Neural-Performance (Clean, stable AO at the lowest neural cost) | 8 | 4 | 12 | Yes | High-End Mobile, iGPUs, laptops |
-| Neural-Low (Cleaner AO with more AO samples) | 16 | 4 | 12 | Yes | Laptops and desktops |
-| Neural-Medium (Clean, stable AO with additional smoothing) | 16 | 8 | 12 | Yes | Laptops and desktops |
-| Neural-High (Cleanest neural output) | 16 | 16 | 12 | Yes | Desktops and dedicated GPUs |
-
-Generally, half-res mode at "Ultra" quality is slightly slower than full-res mode at "Performance" quality, but produces significantly better results.
-
-If you wish to make entirely custom quality setup, you can manually change `aoSamples`, `denoiseSamples` and the `denoiseRadius` in the `configuration` object.
-
-```js 
-n8aopass.configuration.aoSamples = 16;
-n8aopass.configuration.denoiseSamples = 8;
-n8aopass.configuration.denoiseRadius = 12;
-```
-
-Either way, changing the quality or any of the above variables is expensive as it forces a recompile of all the shaders used in the AO effect. It is recommended to do this only once, at the start of your application. Merely setting the values each frame to some constant does not trigger recompile, however.
-
-# Debug Mode
-
-If you want to track the exact amount of time the AO render pass is taking in your scene, you can enable debug mode by doing:
-
-```js
-n8aopass.enableDebugMode(); // Disable with n8aopass.disableDebugMode();
-```
-
-Then, the `n8aopass.lastTime` variable, which is normally undefined, will have a value set each frame which represents the time, in milliseconds, the AO took to render (the value typically lags behind a few frames due to the CPU and GPU being slightly out of sync). This is useful for debugging performance issues.
-
-Note that debug mode relies on WebGL features that are not available in all browsers - so make sure you are using a recent version of a Chromium browser while debugging. If your browser does not support these extra features (EXT_disjoint_timer_query_webgl2), debug mode will not work and an error will be thrown. The rest of the AO will still function as normal.
-
-# Display Modes
-
-`N8AOPass` comes with a variety of display modes that can be used to debug/showcase the AO effect. They can be switched between by doing:
-
-```js
-n8aopass.setDisplayMode("AO"); // Or any other display mode
-```
-
-The display modes available are:
-
-| Display Mode | Description |
-|:---:|:---:|
-| Combined | Standard option, composites the AO effect onto the scene to modulate lighting - what you should use in production ![screenshot](example/tutorial/combined.jpeg) |
-| AO | Shows only the AO effect as a black (completely occluded) and white (no occlusion) image ![screenshot](example/tutorial/ao.jpeg) |
-| No AO | Shows only the scene without the AO effect  ![screenshot](example/tutorial/noao.jpeg) |
-| Split | Shows the scene with and without the AO effect side-by-side (divided by a white line in the middle) ![screenshot](example/tutorial/split.jpeg) |
-| Split AO | Shows the AO effect as a black and white image, and the scene with the AO effect applied side-by-side (divided by a white line in the middle) ![screenshot](example/tutorial/splitao.jpeg) |
-
-# Transparency
+## Transparency
 
 N8AO supports transparency as best as it can - transparent objects with depthWrite disabled will not occlude anything and look completely correct. Transparent object with depthWrite enabled may lead to slight artifacts, but on the whole look fine (as long as their alpha value isn't too low).
 
 The transparency solution used by N8AO is based of auxillary render target storing
-the accumulated alpha for each pixel - meaning that in order for transparency to work, all transparent objects **will be rendered twice**. This normally isn't a problem, but if you have a lot of transparent objects that fill up a large portion of the screen, it can be a significant performance hit.
+the accumulated alpha for each pixel - meaning that in order for transparency to work, all transparent objects **will be rendered twice**. This normally isn't a problem, but if you have a lot of transparent objects that fill up a large portion of the screen, it can be a significant performance hit.
 
 Transparency is automatically enabled in scenes that have transparent objects in them, but can be set manually via `configuration.transparencyAware`:
 
@@ -276,20 +299,7 @@ You can also simply have an object not receive AO at all (this requires renderin
 mesh.userData.cannotReceiveAO = false;
 ```
 
-
-# Accumulation
-
-When the camera is still, you can enable the accumulation of samples across frames, which will reduce noise and improve the quality of the AO effect. This is done by setting `configuration.accumulate` to `true`:
-
-```js
-n8aopass.configuration.accumulate = true;
-```
-
-For the best results, `denoiseRadius` should be set to 0 and `denoiseSamples` should be set to 1. This will ensure that the AO effect is not blurred, and that the accumulation is purely temporal.
-
-The accumulation effect works best in scenes with no motion - as it does not calculate motion vectors and will only work with the camera still. If the camera is moving, the accumulation effect will be disabled automatically. But if an object is moving, N8AO won't be able to pick up on that and the object's ambient occlusion will become blurred.
-
-# Stencil
+## Stencil
 
 N8AOPass supports stencil buffers, but you must enable them via `configuration.stencil`:
 
@@ -317,7 +327,7 @@ const n8aopass = new N8AOPostPass(
 composer.addPass(n8aopass);
 ```
 
-# Bias Adjustment
+## Bias Adjustment
 
 The bias calculated by N8AO can sometimes be wrong and produce artifacts - control it with `configuration.biasOffset` and `configuration.biasMultiplier`.
 
@@ -325,9 +335,35 @@ In-shader, the bias will be calculated as `bias = biasOffset + biasMultiplier * 
 
 Only adjust these values if you are seeing artifacts in your AO effect and you know what you are doing.
 
-# AO Tones
+## Debug Mode
 
-The property `configuration.aoTones` controls the number of tones the AO effect can have. Can be used for toon shading or bevel effects - default is `0`, which means the AO effect is continuous. Any value above `0` will cause the AO effect to be quantized into that many tones.
+If you want to track the exact amount of time the AO render pass is taking in your scene, you can enable debug mode by doing:
+
+```js
+n8aopass.enableDebugMode(); // Disable with n8aopass.disableDebugMode();
+```
+
+Then, the `n8aopass.lastTime` variable, which is normally undefined, will have a value set each frame which represents the time, in milliseconds, the AO took to render (the value typically lags behind a few frames due to the CPU and GPU being slightly out of sync). This is useful for debugging performance issues.
+
+Note that debug mode relies on WebGL features that are not available in all browsers - so make sure you are using a recent version of a Chromium browser while debugging. If your browser does not support these extra features (EXT_disjoint_timer_query_webgl2), debug mode will not work and an error will be thrown. The rest of the AO will still function as normal.
+
+## Display Modes
+
+`N8AOPass` comes with a variety of display modes that can be used to debug/showcase the AO effect. They can be switched between by doing:
+
+```js
+n8aopass.setDisplayMode("AO"); // Or any other display mode
+```
+
+The display modes available are:
+
+| Display Mode | Description |
+|:---:|:---:|
+| Combined | Standard option, composites the AO effect onto the scene to modulate lighting - what you should use in production ![screenshot](example/tutorial/combined.jpeg) |
+| AO | Shows only the AO effect as a black (completely occluded) and white (no occlusion) image ![screenshot](example/tutorial/ao.jpeg) |
+| No AO | Shows only the scene without the AO effect  ![screenshot](example/tutorial/noao.jpeg) |
+| Split | Shows the scene with and without the AO effect side-by-side (divided by a white line in the middle) ![screenshot](example/tutorial/split.jpeg) |
+| Split AO | Shows the AO effect as a black and white image, and the scene with the AO effect applied side-by-side (divided by a white line in the middle) ![screenshot](example/tutorial/splitao.jpeg) |
 
 # Compatibility
 

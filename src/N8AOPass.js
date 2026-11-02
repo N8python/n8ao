@@ -4,12 +4,14 @@ import { FullScreenTriangle } from './FullScreenTriangle.js';
 import { EffectShader } from './EffectShader.js';
 import { EffectCompositer } from './EffectCompositer.js';
 import { PoissionBlur } from './PoissionBlur.js';
+import { neuralDenoiseShaderFor } from './NeuralDenoise.js';
 import {
-    neuralDenoiseShaderFor,
-    neuralModelFor,
-    neuralSupportedAOSamples,
-    neuralSupportedDenoiseSamples
-} from './NeuralDenoise.js';
+    neuralRefusal,
+    lockForNeural,
+    unlockFromNeural,
+    warnDepthAwareUpsampling,
+    effectiveConfigurationOf
+} from './NeuralSettings.js';
 import { neuralUpsampleShader } from './NeuralUpsample.js';
 import { DepthDownSample } from "./DepthDownSample.js";
 import { N8AOPostPass } from './N8AOPostPass.js';
@@ -62,7 +64,8 @@ class N8AOPass extends Pass {
         this.height = height;
 
         this.clear = true;
-        this._neuralDenoiseWarningKey = null;
+        // Values neural denoising replaced when it was turned on, put back when it is turned off.
+        this._neuralReplaced = {};
 
         this.camera = camera;
         this.scene = scene;
@@ -81,11 +84,10 @@ class N8AOPass extends Pass {
          * depthBufferType: 1 | 2 | 3,
          * screenSpaceRadius: boolean,
          * halfRes: boolean,
-         * depthAwareUpsampling: boolean,
+         * depthAwareUpsampling: boolean, // always on; kept for compatibility
          * autoRenderBeauty: boolean
          * colorMultiply: boolean,
-         * neuralDenoise: boolean,
-         * neuralUpsample: boolean
+         * neuralDenoise: boolean
          * }
          */
         this.configuration = new Proxy({
@@ -111,10 +113,18 @@ class N8AOPass extends Pass {
             transparencyAware: false,
             stencil: false,
             accumulate: false,
-            neuralDenoise: false,
-            neuralUpsample: true
+            neuralDenoise: false
         }, {
             set: (target, propName, value) => {
+                if (propName === 'depthAwareUpsampling') {
+                    warnDepthAwareUpsampling(value);
+                    return true;
+                }
+                const refusal = target.neuralDenoise ? neuralRefusal(propName, value) : null;
+                if (refusal) {
+                    console.error(refusal);
+                    return true;
+                }
                 const oldProp = target[propName];
                 target[propName] = value;
                 if (value.equals) {
@@ -137,21 +147,14 @@ class N8AOPass extends Pass {
                     this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 }
                 if (propName === 'neuralDenoise' && oldProp !== value) {
-                    const [lowAO, highAO] = neuralSupportedAOSamples;
-                    const [lowDenoise, highDenoise] = neuralSupportedDenoiseSamples;
-                    const unsupportedAO = target.aoSamples < lowAO || target.aoSamples > highAO;
-                    const reconfigureAO = value && unsupportedAO;
+                    const oldAOSamples = target.aoSamples;
                     if (value) {
-                        if (unsupportedAO) {
-                            target.aoSamples = 16;
-                        }
-                        if (target.denoiseSamples < lowDenoise || target.denoiseSamples > highDenoise) {
-                            target.denoiseSamples = 8;
-                        }
-                        target.denoiseRadius = 12;
-                        target.denoiseIterations = 2;
+                        this._neuralReplaced = lockForNeural(target);
+                    } else {
+                        unlockFromNeural(target, this._neuralReplaced);
+                        this._neuralReplaced = {};
                     }
-                    if (reconfigureAO) {
+                    if (target.aoSamples !== oldAOSamples) {
                         this.configureAOPass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                     }
                     this.configureDenoisePass(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
@@ -165,9 +168,6 @@ class N8AOPass extends Pass {
                     this.configureHalfResTargets();
                     this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                     this.setSize(this.width, this.height);
-                }
-                if (propName === "depthAwareUpsampling" && oldProp !== value) {
-                    this.configureEffectCompositer(this.configuration.depthBufferType, this.camera.isOrthographicCamera);
                 }
                 if (propName === "transparencyAware" && oldProp !== value) {
                     this.autoDetectTransparency = false;
@@ -523,44 +523,16 @@ class N8AOPass extends Pass {
             this.poissonBlurQuad = new FullScreenTriangle(this.standardDenoiseMaterial);
         }
     }
+    // The neural material exists whenever neuralDenoise is on, since the settings it needs are locked.
     shouldUseNeuralDenoise() {
-        if (!this.configuration.neuralDenoise) {
-            this._neuralDenoiseWarningKey = null;
-            return false;
-        }
-
-        const incompatibilities = [];
-        if (!neuralModelFor(
-            this.configuration.aoSamples, this.configuration.denoiseSamples, this.configuration.halfRes
-        )) {
-            const [lowAO, highAO] = neuralSupportedAOSamples;
-            const [lowDenoise, highDenoise] = neuralSupportedDenoiseSamples;
-            incompatibilities.push(
-                `aoSamples ${this.configuration.aoSamples} with denoiseSamples ${this.configuration.denoiseSamples}`
-                + ` is not supported (expected aoSamples ${lowAO}-${highAO} and denoiseSamples ${lowDenoise}-${highDenoise})`
-            );
-        }
-        if (this.configuration.denoiseRadius !== 12) {
-            incompatibilities.push(`denoiseRadius is ${this.configuration.denoiseRadius} (expected 12)`);
-        }
-        if (this.configuration.denoiseIterations !== 2) {
-            incompatibilities.push(`denoiseIterations is ${this.configuration.denoiseIterations} (expected 2)`);
-        }
-
-        if (incompatibilities.length > 0) {
-            const warningKey = incompatibilities.join('; ');
-            if (warningKey !== this._neuralDenoiseWarningKey) {
-                console.warn(
-                    `[N8AO] neuralDenoise is enabled but cannot run: ${warningKey}. `
-                    + 'Neural denoising has been disabled; standard denoising will be used.'
-                );
-                this._neuralDenoiseWarningKey = warningKey;
-            }
-            return false;
-        }
-
-        this._neuralDenoiseWarningKey = null;
-        return this.neuralDenoiseMaterial !== null;
+        return Boolean(this.configuration.neuralDenoise) && this.neuralDenoiseMaterial !== null;
+    }
+    /**
+     * What the pass actually runs with: the denoiser and neural model in use, the denoise radius in
+     * screen pixels, and how half-resolution AO is upsampled.
+     */
+    get effectiveConfiguration() {
+        return effectiveConfigurationOf(this);
     }
     configureEffectCompositer(depthBufferType = DepthType.Default, ortho = false) {
             this.firstFrame();
@@ -573,7 +545,7 @@ class N8AOPass extends Pass {
             if (ortho) {
                 e.fragmentShader = "#define ORTHO\n" + e.fragmentShader;
             }
-            if (this.configuration.halfRes && this.configuration.depthAwareUpsampling) {
+            if (this.configuration.halfRes) {
                 e.fragmentShader = "#define HALFRES\n" + e.fragmentShader;
             }
             this.standardCompositerMaterial?.dispose();
@@ -583,7 +555,7 @@ class N8AOPass extends Pass {
                 fragmentShader: e.fragmentShader.replace("__N8AO_NEURAL_UPSAMPLE__", "")
             });
             // Learned upsampling for half-resolution neural denoising, picked per frame.
-            this.neuralCompositerMaterial = this.configuration.halfRes && this.configuration.depthAwareUpsampling
+            this.neuralCompositerMaterial = this.configuration.halfRes
                 ? new THREE.ShaderMaterial({
                     ...e,
                     fragmentShader: "#define NEURAL_UPSAMPLE\n"
@@ -819,8 +791,7 @@ class N8AOPass extends Pass {
             // End the blur
             // Start the composition
             // The learned upsampler was trained on neural-denoised AO, so it runs only with it.
-            this.effectCompositerQuad.material = this.neuralCompositerMaterial && this.configuration.neuralUpsample
-                && this.shouldUseNeuralDenoise()
+            this.effectCompositerQuad.material = this.neuralCompositerMaterial && this.shouldUseNeuralDenoise()
                 ? this.neuralCompositerMaterial
                 : this.standardCompositerMaterial;
             if (this.configuration.transparencyAware) {
@@ -914,27 +885,34 @@ class N8AOPass extends Pass {
             this.configuration.aoSamples = 8;
             this.configuration.denoiseSamples = 4;
             this.configuration.denoiseRadius = 12;
+            this.configuration.denoiseIterations = 2;
         } else if (mode === "Low") {
             this.configuration.neuralDenoise = false;
             this.configuration.aoSamples = 16;
             this.configuration.denoiseSamples = 4;
             this.configuration.denoiseRadius = 12;
+            this.configuration.denoiseIterations = 2;
         } else if (mode === "Medium") {
             this.configuration.neuralDenoise = false;
             this.configuration.aoSamples = 16;
             this.configuration.denoiseSamples = 8;
             this.configuration.denoiseRadius = 12;
+            this.configuration.denoiseIterations = 2;
         } else if (mode === "High") {
             this.configuration.neuralDenoise = false;
             this.configuration.aoSamples = 64;
             this.configuration.denoiseSamples = 8;
             this.configuration.denoiseRadius = 6;
+            this.configuration.denoiseIterations = 2;
         } else if (mode === "Ultra") {
             this.configuration.neuralDenoise = false;
             this.configuration.aoSamples = 64;
             this.configuration.denoiseSamples = 16;
             this.configuration.denoiseRadius = 6;
+            this.configuration.denoiseIterations = 2;
         } else if (["Neural-Performance", "Neural-Low", "Neural-Medium", "Neural-High"].includes(mode)) {
+            // Turned on first, so that turning it off later restores the settings from before.
+            this.configuration.neuralDenoise = true;
             // [aoSamples, denoiseSamples]; Neural-Performance runs the low-end specialist model.
             [this.configuration.aoSamples, this.configuration.denoiseSamples] = {
                 "Neural-Performance": [8, 4],
@@ -942,10 +920,6 @@ class N8AOPass extends Pass {
                 "Neural-Medium": [16, 8],
                 "Neural-High": [16, 16]
             }[mode];
-            this.configuration.denoiseRadius = 12;
-            this.configuration.denoiseIterations = 2;
-            this.configuration.halfRes = false;
-            this.configuration.neuralDenoise = true;
         }
 
     }

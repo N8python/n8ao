@@ -1,6 +1,6 @@
 {
     "name": "n8ao",
-    "version": "2.0.1",
+    "version": "2.0.2",
     "description": "An efficient and visually pleasing implementation of SSAO with an emphasis on temporal stability and artist control.",
     "main": "dist/N8AO.js",
     "scripts": {

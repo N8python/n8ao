@@ -10,3 +10,7 @@ training-output
 __pycache__
 *.pyc
 *.DS_Store
+bench
+output
+.claude
+.codex

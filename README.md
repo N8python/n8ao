@@ -19,34 +19,6 @@ Scene w/ AO applied:
 
 [![screenshot](example/tutorial/contrast.jpeg)](https://n8python.github.io/n8ao/example/)
 
-# What's New in 2.1
-
-**New**
-- Better neural denoising: the 2.0 model is replaced by two smaller, more accurate ones. A model specialized for low sample counts (4 to 8 AO samples with 2 to 8 denoise samples) is picked automatically in that range.
-- A `Neural-Performance` quality mode (8 AO samples, 4 denoise samples), the cheapest neural mode.
-- Neural denoising at half resolution: `halfRes` and `neuralDenoise` now work together, with their own denoisers and a small learned upsampler.
-- Neural denoising supports 4 to 64 AO samples and 2 to 16 denoise samples.
-- `n8aopass.effectiveConfiguration` reports what the pass actually runs with.
-
-**Faster**
-- AO samples far from their pixel read coarser copies of the depth buffer. At 1080p on an Apple M5 Max, Medium drops from about 0.78ms to 0.70ms and Ultra from 2.5ms to 2.0ms; large AO radii gain the most (about 30% at radius 8).
-- The new neural denoisers are cheaper: Neural-Medium drops from about 1.8ms to 1.1ms, and Neural-High from 2.8ms to 1.5ms.
-
-**Fixed**
-- Half resolution with reversed depth buffers.
-- Half-resolution upscaling at image borders and on sloped surfaces, which makes half-resolution AO more accurate in every mode.
-- `biasMultiplier` no longer changes with where the camera is in the world.
-
-**Upgrading from 2.0**
-
-Existing code keeps working. A few behaviors changed:
-
-- While `neuralDenoise` is on, values it does not support (see [Neural Denoising](#neural-denoising)) are refused with a console error. 2.0 instead fell back to standard denoising with a warning.
-- Turning `neuralDenoise` on no longer forces 16 AO samples or turns `halfRes` off, and turning it off restores the settings it replaced.
-- The neural quality modes no longer turn `halfRes` off, and the other quality modes also set `denoiseIterations` to 2.
-- `depthAwareUpsampling` is always on; setting it to `false` does nothing.
-- Neural and half-resolution AO look slightly different from 2.0, because of the new models and the fixes above.
-
 # Installation
 
 From npm: `npm install n8ao` -> `import {N8AOPass} from "n8ao"`
@@ -408,6 +380,34 @@ N8AO is not yet compatible with WebGPU, but will be in the future. Stay tuned :D
 Like all screen space methods, geometry that is offscreen or is blocked by another object will not actually occlude anything. Haloing is still a minor issue in some cases, but it is not very noticeable.
 
 Generally, the effect will appear to be grounded completely in world-space, with few view dependent artifacts. Only if one is specifically looking for them will they be found.
+
+# What's New in 2.1
+
+**New**
+- Better neural denoising: the 2.0 model is replaced by two smaller, more accurate ones. A model specialized for low sample counts (4 to 8 AO samples with 2 to 8 denoise samples) is picked automatically in that range.
+- A `Neural-Performance` quality mode (8 AO samples, 4 denoise samples), the cheapest neural mode.
+- Neural denoising at half resolution: `halfRes` and `neuralDenoise` now work together, with their own denoisers and a small learned upsampler.
+- Neural denoising supports 4 to 64 AO samples and 2 to 16 denoise samples.
+- `n8aopass.effectiveConfiguration` reports what the pass actually runs with.
+
+**Faster**
+- AO samples far from their pixel read coarser copies of the depth buffer. At 1080p on an Apple M5 Max, Medium drops from about 0.78ms to 0.70ms and Ultra from 2.5ms to 2.0ms; large AO radii gain the most (about 30% at radius 8).
+- The new neural denoisers are cheaper: Neural-Medium drops from about 1.8ms to 1.1ms, and Neural-High from 2.8ms to 1.5ms.
+
+**Fixed**
+- Half resolution with reversed depth buffers.
+- Half-resolution upscaling at image borders and on sloped surfaces, which makes half-resolution AO more accurate in every mode.
+- `biasMultiplier` no longer changes with where the camera is in the world.
+
+**Upgrading from 2.0**
+
+Existing code keeps working. A few behaviors changed:
+
+- While `neuralDenoise` is on, values it does not support (see [Neural Denoising](#neural-denoising)) are refused with a console error. 2.0 instead fell back to standard denoising with a warning.
+- Turning `neuralDenoise` on no longer forces 16 AO samples or turns `halfRes` off, and turning it off restores the settings it replaced.
+- The neural quality modes no longer turn `halfRes` off, and the other quality modes also set `denoiseIterations` to 2.
+- `depthAwareUpsampling` is always on; setting it to `false` does nothing.
+- Neural and half-resolution AO look slightly different from 2.0, because of the new models and the fixes above.
 
 # Contributing
 

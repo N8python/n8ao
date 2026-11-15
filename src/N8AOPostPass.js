@@ -53,8 +53,8 @@ class N8AOPostPass extends Pass {
      */
     constructor(scene, camera, width = 512, height = 512) {
         super();
-        this.width = width;
-        this.height = height;
+        this.width = Math.floor(width);
+        this.height = Math.floor(height);
 
         this.clear = true;
         // Values neural denoising replaced when it was turned on, put back when it is turned off.
@@ -299,8 +299,8 @@ class N8AOPostPass extends Pass {
 
         if (this.configuration.halfRes) {
             this.depthDownsampleTarget = new WebGLMultipleRenderTargetsCompat(
-                this.width / 2,
-                this.height / 2,
+                Math.floor(this.width / 2),
+                Math.floor(this.height / 2),
                 2
             );
 
@@ -617,24 +617,21 @@ class N8AOPostPass extends Pass {
     }
     setSize(width, height) {
         this.firstFrame();
-        this.width = width;
-        this.height = height;
-        const c = this.configuration.halfRes ? 0.5 : 1;
-        this.writeTargetInternal.setSize(width *
-            c, height *
-            c);
-        this.readTargetInternal.setSize(width *
-            c, height *
-            c);
-        this.accumulationRenderTarget.setSize(width * c, height * c);
+        this.width = Math.floor(width);
+        this.height = Math.floor(height);
+        const internalWidth = this.configuration.halfRes ? Math.floor(this.width / 2) : this.width;
+        const internalHeight = this.configuration.halfRes ? Math.floor(this.height / 2) : this.height;
+        this.writeTargetInternal.setSize(internalWidth, internalHeight);
+        this.readTargetInternal.setSize(internalWidth, internalHeight);
+        this.accumulationRenderTarget.setSize(internalWidth, internalHeight);
         if (this.configuration.halfRes) {
-            this.depthDownsampleTarget.setSize(width * c, height * c);
+            this.depthDownsampleTarget.setSize(internalWidth, internalHeight);
         }
         if (this.configuration.transparencyAware) {
-            this.transparencyRenderTargetDWFalse.setSize(width, height);
-            this.transparencyRenderTargetDWTrue.setSize(width, height);
+            this.transparencyRenderTargetDWFalse.setSize(this.width, this.height);
+            this.transparencyRenderTargetDWTrue.setSize(this.width, this.height);
         }
-        this.outputTargetInternal.setSize(width, height);
+        this.outputTargetInternal.setSize(this.width, this.height);
     }
     setDepthTexture(depthTexture) {
         this.depthTexture = depthTexture;
@@ -828,7 +825,6 @@ class N8AOPostPass extends Pass {
             this.effectCompositerQuad.material.uniforms["near"].value = this.camera.near;
             this.effectCompositerQuad.material.uniforms["far"].value = this.camera.far;
             this.effectCompositerQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
-            this.effectCompositerQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
             this.effectCompositerQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
             this.effectCompositerQuad.material.uniforms["downsampledDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.textures[0] : this.depthTexture;
             this.effectCompositerQuad.material.uniforms["resolution"].value = this._r;
@@ -849,7 +845,6 @@ class N8AOPostPass extends Pass {
                     this.configuration.color
                 ).convertSRGBToLinear();
             this.effectCompositerQuad.material.uniforms["colorMultiply"].value = this.configuration.colorMultiply;
-            this.effectCompositerQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new THREE.Vector3());
             this.effectCompositerQuad.material.uniforms["fog"].value = !!this.scene.fog;
             if (this.scene.fog) {
                 if (

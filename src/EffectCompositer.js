@@ -12,8 +12,6 @@ const EffectCompositer = {
         'projMat': { value: /* @__PURE__ */ new THREE.Matrix4() },
         'viewMat': { value: /* @__PURE__ */ new THREE.Matrix4() },
         'projectionMatrixInv': { value: /* @__PURE__ */ new THREE.Matrix4() },
-        'viewMatrixInv': { value: /* @__PURE__ */ new THREE.Matrix4() },
-        'cameraPos': { value: /* @__PURE__ */ new THREE.Vector3() },
         'resolution': { value: /* @__PURE__ */ new THREE.Vector2() },
         'color': { value: /* @__PURE__ */ new THREE.Vector3(0, 0, 0) },
         'blueNoise': { value: null },
@@ -58,7 +56,6 @@ const EffectCompositer = {
     uniform vec2 resolution;
     uniform vec3 color;
     uniform mat4 projectionMatrixInv;
-    uniform mat4 viewMatrixInv;
     uniform float intensity;
     uniform float renderMode;
     uniform float near;
@@ -76,7 +73,6 @@ const EffectCompositer = {
     uniform float fogFar;
     uniform float radius;
     uniform float distanceFalloff;
-    uniform vec3 cameraPos;
     varying vec2 vUv;
     highp float linearize_depth(highp float d, highp float zNear,highp float zFar)
     {
@@ -246,12 +242,9 @@ const EffectCompositer = {
         if (aoTones > 0.0) {
             finalAo = ceil(finalAo * aoTones) / aoTones;
         }
-        float fogFactor;
-        float fogDepth = distance(
-            cameraPos,
-            getWorldPos(depth, vUv)
-        );
+        float fogFactor = 0.0;
         if (fog) {
+            float fogDepth = -getWorldPos(depth, vUv).z;
             if (fogExp) {
                 fogFactor = 1.0 - exp( - fogDensity * fogDensity * fogDepth * fogDepth );
             } else {

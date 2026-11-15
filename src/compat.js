@@ -11,9 +11,6 @@ export const WebGLMultipleRenderTargetsCompat =
           super(width, height, { ...options, count });
           this.isWebGLMultipleRenderTargets = true;
         }
-        get texture() {
-          return this.textures;
-        }
       }
     : class extends THREE.WebGLRenderTarget {
         constructor(width = 1, height = 1, count = 1, options = {}) {

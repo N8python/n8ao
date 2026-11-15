@@ -553,12 +553,6 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
         "projectionMatrixInv": {
             value: /* @__PURE__ */ new $5Whe3$Matrix4()
         },
-        "viewMatrixInv": {
-            value: /* @__PURE__ */ new $5Whe3$Matrix4()
-        },
-        "cameraPos": {
-            value: /* @__PURE__ */ new $5Whe3$Vector3()
-        },
         "resolution": {
             value: /* @__PURE__ */ new $5Whe3$Vector2()
         },
@@ -643,7 +637,6 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
     uniform vec2 resolution;
     uniform vec3 color;
     uniform mat4 projectionMatrixInv;
-    uniform mat4 viewMatrixInv;
     uniform float intensity;
     uniform float renderMode;
     uniform float near;
@@ -661,7 +654,6 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
     uniform float fogFar;
     uniform float radius;
     uniform float distanceFalloff;
-    uniform vec3 cameraPos;
     varying vec2 vUv;
     highp float linearize_depth(highp float d, highp float zNear,highp float zFar)
     {
@@ -831,12 +823,9 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
         if (aoTones > 0.0) {
             finalAo = ceil(finalAo * aoTones) / aoTones;
         }
-        float fogFactor;
-        float fogDepth = distance(
-            cameraPos,
-            getWorldPos(depth, vUv)
-        );
+        float fogFactor = 0.0;
         if (fog) {
+            float fogDepth = -getWorldPos(depth, vUv).z;
             if (fogExp) {
                 fogFactor = 1.0 - exp( - fogDensity * fogDensity * fogDepth * fogDepth );
             } else {
@@ -1907,9 +1896,6 @@ const $ff9437d9c7577f11$export$156f6a58f569aa09 = $ff9437d9c7577f11$var$version 
         });
         this.isWebGLMultipleRenderTargets = true;
     }
-    get texture() {
-        return this.textures;
-    }
 } : class extends $5Whe3$WebGLRenderTarget {
     constructor(width = 1, height = 1, count = 1, options = {}){
         super(width, height, options);
@@ -1988,8 +1974,8 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
      * @property {number} height
      */ constructor(scene, camera, width = 512, height = 512){
         super();
-        this.width = width;
-        this.height = height;
+        this.width = Math.floor(width);
+        this.height = Math.floor(height);
         this.clear = true;
         // Values neural denoising replaced when it was turned on, put back when it is turned off.
         this._neuralReplaced = {};
@@ -2202,7 +2188,7 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
     configureHalfResTargets() {
         this.firstFrame();
         if (this.configuration.halfRes) {
-            this.depthDownsampleTarget = new (0, $ff9437d9c7577f11$export$156f6a58f569aa09)(this.width / 2, this.height / 2, 2);
+            this.depthDownsampleTarget = new (0, $ff9437d9c7577f11$export$156f6a58f569aa09)(Math.floor(this.width / 2), Math.floor(this.height / 2), 2);
             if ($5Whe3$REVISION <= 161) this.depthDownsampleTarget.textures = this.depthDownsampleTarget.texture;
             this.depthDownsampleTarget.textures[0].format = $5Whe3$RedFormat;
             this.depthDownsampleTarget.textures[0].type = $5Whe3$FloatType;
@@ -2455,18 +2441,19 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
     }
     setSize(width, height) {
         this.firstFrame();
-        this.width = width;
-        this.height = height;
-        const c = this.configuration.halfRes ? 0.5 : 1;
-        this.writeTargetInternal.setSize(width * c, height * c);
-        this.readTargetInternal.setSize(width * c, height * c);
-        this.accumulationRenderTarget.setSize(width * c, height * c);
-        if (this.configuration.halfRes) this.depthDownsampleTarget.setSize(width * c, height * c);
+        this.width = Math.floor(width);
+        this.height = Math.floor(height);
+        const internalWidth = this.configuration.halfRes ? Math.floor(this.width / 2) : this.width;
+        const internalHeight = this.configuration.halfRes ? Math.floor(this.height / 2) : this.height;
+        this.writeTargetInternal.setSize(internalWidth, internalHeight);
+        this.readTargetInternal.setSize(internalWidth, internalHeight);
+        this.accumulationRenderTarget.setSize(internalWidth, internalHeight);
+        if (this.configuration.halfRes) this.depthDownsampleTarget.setSize(internalWidth, internalHeight);
         if (this.configuration.transparencyAware) {
-            this.transparencyRenderTargetDWFalse.setSize(width, height);
-            this.transparencyRenderTargetDWTrue.setSize(width, height);
+            this.transparencyRenderTargetDWFalse.setSize(this.width, this.height);
+            this.transparencyRenderTargetDWTrue.setSize(this.width, this.height);
         }
-        this.outputTargetInternal.setSize(width, height);
+        this.outputTargetInternal.setSize(this.width, this.height);
     }
     setDepthTexture(depthTexture) {
         this.depthTexture = depthTexture;
@@ -2639,7 +2626,6 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         this.effectCompositerQuad.material.uniforms["near"].value = this.camera.near;
         this.effectCompositerQuad.material.uniforms["far"].value = this.camera.far;
         this.effectCompositerQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
-        this.effectCompositerQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
         this.effectCompositerQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
         this.effectCompositerQuad.material.uniforms["downsampledDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.textures[0] : this.depthTexture;
         this.effectCompositerQuad.material.uniforms["resolution"].value = this._r;
@@ -2653,7 +2639,6 @@ class $87431ee93b037844$export$2489f9981ab0fa82 extends (0, $5Whe3$Pass1) {
         this.effectCompositerQuad.material.uniforms["tDiffuse"].value = this.configuration.accumulate ? this.accumulationRenderTarget.texture : this.writeTargetInternal.texture;
         this.effectCompositerQuad.material.uniforms["color"].value = this._c.copy(this.configuration.color).convertSRGBToLinear();
         this.effectCompositerQuad.material.uniforms["colorMultiply"].value = this.configuration.colorMultiply;
-        this.effectCompositerQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new $5Whe3$Vector3());
         this.effectCompositerQuad.material.uniforms["fog"].value = !!this.scene.fog;
         if (this.scene.fog) {
             if (this.scene.fog.isFog) {
@@ -2803,8 +2788,8 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
      * @property {number} height
      */ constructor(scene, camera, width = 512, height = 512){
         super();
-        this.width = width;
-        this.height = height;
+        this.width = Math.floor(width);
+        this.height = Math.floor(height);
         this.clear = true;
         // Values neural denoising replaced when it was turned on, put back when it is turned off.
         this._neuralReplaced = {};
@@ -3013,7 +2998,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
     configureHalfResTargets() {
         this.firstFrame();
         if (this.configuration.halfRes) {
-            this.depthDownsampleTarget = new (0, $ff9437d9c7577f11$export$156f6a58f569aa09)(this.width / 2, this.height / 2, 2);
+            this.depthDownsampleTarget = new (0, $ff9437d9c7577f11$export$156f6a58f569aa09)(Math.floor(this.width / 2), Math.floor(this.height / 2), 2);
             if ($5Whe3$REVISION <= 161) this.depthDownsampleTarget.textures = this.depthDownsampleTarget.texture;
             this.depthDownsampleTarget.textures[0].format = $5Whe3$RedFormat;
             this.depthDownsampleTarget.textures[0].type = $5Whe3$FloatType;
@@ -3267,17 +3252,18 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
     }
     setSize(width, height) {
         this.firstFrame();
-        this.width = width;
-        this.height = height;
-        const c = this.configuration.halfRes ? 0.5 : 1;
-        this.beautyRenderTarget.setSize(width, height);
-        this.writeTargetInternal.setSize(width * c, height * c);
-        this.readTargetInternal.setSize(width * c, height * c);
-        this.accumulationRenderTarget.setSize(width * c, height * c);
-        if (this.configuration.halfRes) this.depthDownsampleTarget.setSize(width * c, height * c);
+        this.width = Math.floor(width);
+        this.height = Math.floor(height);
+        const internalWidth = this.configuration.halfRes ? Math.floor(this.width / 2) : this.width;
+        const internalHeight = this.configuration.halfRes ? Math.floor(this.height / 2) : this.height;
+        this.beautyRenderTarget.setSize(this.width, this.height);
+        this.writeTargetInternal.setSize(internalWidth, internalHeight);
+        this.readTargetInternal.setSize(internalWidth, internalHeight);
+        this.accumulationRenderTarget.setSize(internalWidth, internalHeight);
+        if (this.configuration.halfRes) this.depthDownsampleTarget.setSize(internalWidth, internalHeight);
         if (this.configuration.transparencyAware) {
-            this.transparencyRenderTargetDWFalse.setSize(width, height);
-            this.transparencyRenderTargetDWTrue.setSize(width, height);
+            this.transparencyRenderTargetDWFalse.setSize(this.width, this.height);
+            this.transparencyRenderTargetDWTrue.setSize(this.width, this.height);
         }
     }
     firstFrame() {
@@ -3443,7 +3429,6 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         this.effectCompositerQuad.material.uniforms["near"].value = this.camera.near;
         this.effectCompositerQuad.material.uniforms["far"].value = this.camera.far;
         this.effectCompositerQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
-        this.effectCompositerQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
         this.effectCompositerQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
         this.effectCompositerQuad.material.uniforms["downsampledDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.textures[0] : this.beautyRenderTarget.depthTexture;
         this.effectCompositerQuad.material.uniforms["resolution"].value = this._r;
@@ -3457,7 +3442,6 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (0, $5Whe3$Pass) {
         this.effectCompositerQuad.material.uniforms["tDiffuse"].value = this.configuration.accumulate ? this.accumulationRenderTarget.texture : this.writeTargetInternal.texture;
         this.effectCompositerQuad.material.uniforms["color"].value = this._c.copy(this.configuration.color).convertSRGBToLinear();
         this.effectCompositerQuad.material.uniforms["colorMultiply"].value = this.configuration.colorMultiply;
-        this.effectCompositerQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new $5Whe3$Vector3());
         this.effectCompositerQuad.material.uniforms["fog"].value = !!this.scene.fog;
         if (this.scene.fog) {
             if (this.scene.fog.isFog) {
